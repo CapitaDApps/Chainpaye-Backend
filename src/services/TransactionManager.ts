@@ -1,0 +1,363 @@
+import { TransactionRepository } from '../repositories/TransactionRepository';
+import { PaymentLinkRepository } from '../repositories/PaymentLinkRepository';
+import { PaymentInitializationRepository } from '../repositories/PaymentInitializationRepository';
+import { StateManager, StateTransitionRequest } from './StateManager';
+import { AuditService } from './AuditService';
+import { TransactionState, IPayerInfo } from '../models/Transaction';
+import { CreateTransactionRequest, CreateTransactionResponse, TransactionStatusResponse } from '../types/transaction';
+import { IPaymentInitialization } from '../models/PaymentInitialization';
+import { randomUUID } from 'crypto';
+
+export interface InitializePaymentRequest {
+  transactionId: string;
+  callbackUrl?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface InitializePaymentResponse {
+  success: boolean;
+  paymentInitialization?: IPaymentInitialization;
+  error?: string;
+}
+
+/**
+ * TransactionManager handles the complete transaction lifecycle from creation through settlement
+ * 
+ * Key responsibilities:
+ * - Create transactions with unique references
+ * - Ensure database persistence before external API calls
+ * - Link transactions to payment links
+ * - Initialize transactions in PENDING state
+ * - Handle payment initialization with Toronet
+ * - Process payment results and state transitions
+ * - Retry incomplete transactions
+ */
+export class TransactionManager {
+  private readonly transactionRepository: TransactionRepository;
+  private readonly paymentLinkRepository: PaymentLinkRepository;
+  private readonly paymentInitializationRepository: PaymentInitializationRepository;
+  private readonly stateManager: StateManager;
+  private readonly auditService: AuditService;
+
+  constructor(
+    transactionRepository: TransactionRepository,
+    paymentLinkRepository: PaymentLinkRepository,
+    paymentInitializationRepository: PaymentInitializationRepository,
+    stateManager: StateManager,
+    auditService: AuditService
+  ) {
+    this.transactionRepository = transactionRepository;
+    this.paymentLinkRepository = paymentLinkRepository;
+    this.paymentInitializationRepository = paymentInitializationRepository;
+    this.stateManager = stateManager;
+    this.auditService = auditService;
+  }
+
+  /**
+   * Create a new transaction for a payment link
+   * Ensures database persistence before any external API calls
+   */
+  async createTransaction(request: CreateTransactionRequest): Promise<CreateTransactionResponse> {
+    const { paymentLinkId, payerInfo, metadata } = request;
+
+    // Validate payment link exists and is active
+    const paymentLink = await this.paymentLinkRepository.findById(paymentLinkId);
+    if (!paymentLink) {
+      throw new Error(`Payment link not found: ${paymentLinkId}`);
+    }
+
+    if (!paymentLink.isActive) {
+      throw new Error(`Payment link is disabled: ${paymentLinkId}`);
+    }
+
+    // Generate unique transaction reference
+    const reference = this.generateTransactionReference();
+
+    // Create transaction data
+    const transactionData = {
+      paymentLinkId,
+      reference,
+      state: TransactionState.PENDING,
+      amount: paymentLink.amount,
+      currency: paymentLink.currency,
+      payerInfo: payerInfo || {},
+      metadata: metadata || {}
+    };
+
+    try {
+      // Persist transaction to database BEFORE any external calls
+      const transaction = await this.transactionRepository.create(transactionData);
+
+      // Audit transaction creation
+      await this.auditService.createAuditLog({
+        entityType: 'Transaction',
+        entityId: transaction.id,
+        action: 'TRANSACTION_CREATED',
+        changes: {
+          paymentLinkId,
+          reference,
+          amount: transaction.amount,
+          currency: transaction.currency,
+          state: TransactionState.PENDING
+        },
+        metadata: {
+          payerInfo,
+          ...metadata
+        }
+      });
+
+      return {
+        id: transaction.id,
+        paymentLinkId: transaction.paymentLinkId,
+        reference: transaction.reference,
+        state: transaction.state,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        payerInfo: transaction.payerInfo,
+        metadata: transaction.metadata,
+        createdAt: transaction.createdAt,
+        updatedAt: transaction.updatedAt
+      };
+
+    } catch (error) {
+      // Audit failed transaction creation
+      await this.auditService.createAuditLog({
+        entityType: 'Transaction',
+        entityId: 'unknown',
+        action: 'TRANSACTION_CREATION_FAILED',
+        changes: {
+          paymentLinkId,
+          reference,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        },
+        metadata
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Get transaction by ID with full details
+   */
+  async getTransaction(transactionId: string): Promise<TransactionStatusResponse | null> {
+    const transaction = await this.transactionRepository.findById(transactionId);
+    if (!transaction) {
+      return null;
+    }
+
+    // Get related records
+    const paymentInitialization = await this.paymentInitializationRepository.findLatestByTransactionId(transactionId);
+    
+    // TODO: Get fiat verification and payout records when those repositories are implemented
+    // const fiatVerification = await this.fiatVerificationRepository.findByTransactionId(transactionId);
+    // const payout = await this.payoutRepository.findByTransactionId(transactionId);
+
+    return {
+      id: transaction.id,
+      paymentLinkId: transaction.paymentLinkId,
+      reference: transaction.reference,
+      state: transaction.state,
+      amount: transaction.amount,
+      currency: transaction.currency,
+      payerInfo: transaction.payerInfo,
+      toronetReference: transaction.toronetReference,
+      metadata: transaction.metadata,
+      createdAt: transaction.createdAt,
+      updatedAt: transaction.updatedAt,
+      paymentInitialization: paymentInitialization ? {
+        id: paymentInitialization.id,
+        toronetReference: paymentInitialization.toronetReference,
+        status: paymentInitialization.status,
+        error: paymentInitialization.error,
+        createdAt: paymentInitialization.createdAt
+      } : undefined
+      // TODO: Add fiat verification and payout info when available
+    };
+  }
+
+  /**
+   * Initialize payment with external payment processor (Toronet)
+   * This is a placeholder - actual Toronet integration will be implemented later
+   */
+  async initializePayment(request: InitializePaymentRequest): Promise<InitializePaymentResponse> {
+    const { transactionId, callbackUrl, metadata } = request;
+
+    // Get transaction
+    const transaction = await this.transactionRepository.findById(transactionId);
+    if (!transaction) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+
+    // Validate transaction is in PENDING state
+    if (transaction.state !== TransactionState.PENDING) {
+      throw new Error(`Transaction must be in PENDING state for initialization. Current state: ${transaction.state}`);
+    }
+
+    try {
+      // TODO: Implement actual Toronet API integration
+      // For now, create a mock payment initialization record
+      const toronetReference = this.generateToronetReference();
+      
+      const initializationData = {
+        transactionId,
+        toronetReference,
+        requestPayload: {
+          amount: transaction.amount,
+          currency: transaction.currency,
+          reference: transaction.reference,
+          callbackUrl,
+          metadata
+        },
+        responsePayload: {
+          // Mock successful response
+          status: 'SUCCESS',
+          paymentUrl: `https://toronet.example.com/pay/${toronetReference}`,
+          reference: toronetReference
+        },
+        status: 'SUCCESS' as const
+      };
+
+      // Create payment initialization record
+      const paymentInitialization = await this.paymentInitializationRepository.create(initializationData);
+
+      // Update transaction with Toronet reference
+      await this.transactionRepository.updateById(transactionId, {
+        toronetReference
+      });
+
+      // Transition state to INITIALIZED
+      await this.stateManager.transitionState({
+        transactionId,
+        newState: TransactionState.INITIALIZED,
+        reason: 'Payment initialization successful with Toronet',
+        metadata: { toronetReference }
+      });
+
+      return {
+        success: true,
+        paymentInitialization
+      };
+
+    } catch (error) {
+      // Create failed initialization record
+      const initializationData = {
+        transactionId,
+        toronetReference: '',
+        requestPayload: {
+          amount: transaction.amount,
+          currency: transaction.currency,
+          reference: transaction.reference,
+          callbackUrl,
+          metadata
+        },
+        responsePayload: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        },
+        status: 'FAILED' as const,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+
+      await this.paymentInitializationRepository.create(initializationData);
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Process payment result from external processor
+   * This will be called by webhook handlers or polling services
+   */
+  async processPaymentResult(transactionId: string, result: any): Promise<void> {
+    // TODO: Implement payment result processing
+    // This will handle fiat verification and state transitions to PAID
+    throw new Error('Payment result processing not yet implemented');
+  }
+
+  /**
+   * Retry incomplete transactions
+   * Used by cron jobs to ensure eventual consistency
+   */
+  async retryIncompleteTransactions(): Promise<void> {
+    // Find transactions in PENDING state that are older than 5 minutes
+    const result = await this.transactionRepository.findWithFilter({
+      state: TransactionState.PENDING,
+      createdBefore: new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
+    });
+
+    const staleTransactions = Array.isArray(result) ? result : result.documents || [];
+
+    for (const transaction of staleTransactions) {
+      try {
+        await this.initializePayment({
+          transactionId: transaction.id,
+          metadata: { retryAttempt: true }
+        });
+      } catch (error) {
+        // Log error but continue processing other transactions
+        await this.auditService.createAuditLog({
+          entityType: 'Transaction',
+          entityId: transaction.id,
+          action: 'RETRY_INITIALIZATION_FAILED',
+          changes: {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Get transactions for a payment link
+   */
+  async getTransactionsByPaymentLink(paymentLinkId: string, page: number = 1, limit: number = 20): Promise<{
+    transactions: TransactionStatusResponse[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const result = await this.transactionRepository.findWithFilter(
+      { paymentLinkId },
+      { page, limit }
+    );
+
+    const transactions = Array.isArray(result) ? result : result.documents || [];
+    const total = Array.isArray(result) ? result.length : result.pagination?.total || 0;
+
+    const transactionResponses = await Promise.all(
+      transactions.map(async (transaction: any) => {
+        const fullTransaction = await this.getTransaction(transaction.id);
+        return fullTransaction!;
+      })
+    );
+
+    return {
+      transactions: transactionResponses,
+      total,
+      page,
+      limit
+    };
+  }
+
+  /**
+   * Generate unique transaction reference
+   */
+  private generateTransactionReference(): string {
+    const timestamp = Date.now().toString(36);
+    const randomId = randomUUID().replace(/-/g, '').substring(0, 8);
+    return `TXN_${timestamp}_${randomId}`.toUpperCase();
+  }
+
+  /**
+   * Generate mock Toronet reference
+   * TODO: Replace with actual Toronet reference from API response
+   */
+  private generateToronetReference(): string {
+    const timestamp = Date.now().toString(36);
+    const randomId = randomUUID().replace(/-/g, '').substring(0, 8);
+    return `TORO_${timestamp}_${randomId}`.toUpperCase();
+  }
+}

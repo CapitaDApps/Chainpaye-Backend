@@ -1,0 +1,40 @@
+{
+  "name": "chainpaye-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "nodemon",
+    "dev:ts": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:pbt": "jest --testNamePattern=\"Property:\""
+  },
+  "keywords": [],
+  "author": "Hydrax117",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@types/mongoose": "^5.11.96",
+    "axios": "^1.13.4",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mongoose": "^9.1.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^25.1.0",
+    "@types/supertest": "^6.0.2",
+    "@types/uuid": "^9.0.8",
+    "fast-check": "^3.15.1",
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.1.6",
+    "nodemon": "^3.1.11",
+    "ts-jest": "^29.1.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}
