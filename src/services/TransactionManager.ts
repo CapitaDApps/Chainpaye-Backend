@@ -4,7 +4,7 @@ import { PaymentInitializationRepository } from '../repositories/PaymentInitiali
 import { StateManager, StateTransitionRequest } from './StateManager';
 import { AuditService } from './AuditService';
 import { TransactionState, IPayerInfo } from '../models/Transaction';
-import { CreateTransactionRequest, CreateTransactionResponse, TransactionStatusResponse } from '../types/transaction';
+import { CreateTransactionRequest, CreateTransactionResponse, TransactionStatusResponse, RecordTransactionRequest, RecordTransactionResponse } from '../types/transaction';
 import { IPaymentInitialization } from '../models/PaymentInitialization';
 import { randomUUID } from 'crypto';
 
@@ -63,11 +63,11 @@ export class TransactionManager {
     // Validate payment link exists and is active
     const paymentLink = await this.paymentLinkRepository.findById(paymentLinkId);
     if (!paymentLink) {
-      throw new Error(`Payment link not found: ${paymentLinkId}`);
+      throw new Error(`This payment link is not available for transactions. The link could not be found or may have been removed: ${paymentLinkId}`);
     }
 
     if (!paymentLink.isActive) {
-      throw new Error(`Payment link is disabled: ${paymentLinkId}`);
+      throw new Error(`This payment link has been disabled and cannot accept new transactions: ${paymentLinkId}`);
     }
 
     // Generate unique transaction reference
@@ -359,5 +359,128 @@ export class TransactionManager {
     const timestamp = Date.now().toString(36);
     const randomId = randomUUID().replace(/-/g, '').substring(0, 8);
     return `TORO_${timestamp}_${randomId}`.toUpperCase();
+  }
+
+  /**
+   * Record transaction as successful with payment details
+   */
+  async recordTransaction(
+    transactionId: string, 
+    request: RecordTransactionRequest
+  ): Promise<RecordTransactionResponse> {
+    const { amount, currency, senderName, senderPhone, paidAt } = request;
+
+    // Find the transaction
+    const transaction = await this.transactionRepository.findById(transactionId);
+    if (!transaction) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+
+    // Validate transaction can be recorded
+    if (transaction.state === TransactionState.COMPLETED) {
+      throw new Error(`Transaction is already completed: ${transactionId}`);
+    }
+
+    if (transaction.state === TransactionState.PAID) {
+      throw new Error(`Transaction is already recorded as paid: ${transactionId}`);
+    }
+
+    // Parse the paid date
+    const paidDate = new Date(paidAt);
+    if (isNaN(paidDate.getTime())) {
+      throw new Error('Invalid paidAt date format. Please use ISO date string.');
+    }
+
+    // Validate currency matches
+    if (currency !== transaction.currency) {
+      throw new Error(`Currency mismatch. Expected: ${transaction.currency}, Received: ${currency}`);
+    }
+
+    try {
+      // Update transaction with payment details
+      const updatedTransaction = await this.transactionRepository.updateById(transactionId, {
+        actualAmountPaid: amount,
+        senderName: senderName,
+        senderPhone: senderPhone,
+        paidAt: paidDate,
+        recordedAt: new Date(),
+        state: TransactionState.PAID
+      });
+
+      if (!updatedTransaction) {
+        throw new Error('Failed to update transaction');
+      }
+
+      // Create audit log for payment recording
+      await this.auditService.createAuditLog({
+        entityType: 'Transaction',
+        entityId: transactionId,
+        action: 'PAYMENT_RECORDED',
+        changes: {
+          actualAmountPaid: amount,
+          senderName: senderName,
+          senderPhone: senderPhone,
+          paidAt: paidDate,
+          recordedAt: new Date(),
+          previousState: transaction.state,
+          newState: TransactionState.PAID
+        },
+        metadata: {
+          originalAmount: transaction.amount,
+          currency: currency
+        }
+      });
+
+      // Transition to COMPLETED state
+      await this.stateManager.transitionState({
+        transactionId: transactionId,
+        newState: TransactionState.COMPLETED,
+        reason: 'Payment successfully recorded and verified',
+        metadata: {
+          actualAmountPaid: amount,
+          senderName: senderName,
+          senderPhone: senderPhone,
+          recordedAt: new Date()
+        }
+      });
+
+      // Get the final updated transaction
+      const finalTransaction = await this.transactionRepository.findById(transactionId);
+      if (!finalTransaction) {
+        throw new Error('Failed to retrieve updated transaction');
+      }
+
+      // Return the response
+      return {
+        id: finalTransaction._id.toString(),
+        paymentLinkId: finalTransaction.paymentLinkId,
+        reference: finalTransaction.reference,
+        state: finalTransaction.state,
+        amount: finalTransaction.amount,
+        currency: finalTransaction.currency,
+        actualAmountPaid: finalTransaction.actualAmountPaid || amount,
+        senderName: finalTransaction.senderName || senderName,
+        senderPhone: finalTransaction.senderPhone || senderPhone,
+        paidAt: finalTransaction.paidAt || paidDate,
+        recordedAt: finalTransaction.recordedAt || new Date(),
+        createdAt: finalTransaction.createdAt,
+        updatedAt: finalTransaction.updatedAt
+      };
+
+    } catch (error) {
+      // Create audit log for failed recording
+      await this.auditService.createAuditLog({
+        entityType: 'Transaction',
+        entityId: transactionId,
+        action: 'PAYMENT_RECORDING_FAILED',
+        changes: {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          attemptedAmount: amount,
+          attemptedSender: senderName
+        }
+      });
+
+      throw error;
+    }
   }
 }

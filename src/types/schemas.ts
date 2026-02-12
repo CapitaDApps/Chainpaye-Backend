@@ -1,7 +1,7 @@
 // Validation schemas for all DTOs
 import { ValidationSchema, ValidationFunctions, ValidationPatterns } from './validation';
 import { CreatePaymentLinkRequest, DisablePaymentLinkRequest } from './payment-link';
-import { CreateTransactionRequest, StateTransitionRequest } from './transaction';
+import { CreateTransactionRequest, StateTransitionRequest, RecordTransactionRequest } from './transaction';
 import { PayoutRequest, RetryPayoutRequest } from './payout';
 import { CreateAuditLogRequest } from './audit';
 
@@ -18,6 +18,17 @@ export const CreatePaymentLinkSchema: ValidationSchema<CreatePaymentLinkRequest>
     required: true,
     minLength: 1,
     maxLength: 255,
+  },
+  address:{
+   type:'string',
+   required:true,
+   
+  },
+  name: {
+    type: 'string',
+    required: true,
+    minLength: 1,
+    maxLength: 100,
   },
   amount: {
     type: 'string',
@@ -103,6 +114,36 @@ export const stateTransitionSchema: ValidationSchema<StateTransitionRequest> = {
   metadata: {
     type: 'object',
     required: false,
+  },
+};
+
+export const RecordTransactionSchema: ValidationSchema<RecordTransactionRequest> = {
+  amount: {
+    type: 'string',
+    required: true,
+    custom: ValidationFunctions.isValidAmount,
+  },
+  currency: {
+    type: 'string',
+    required: true,
+    custom: ValidationFunctions.isValidCurrency,
+  },
+  senderName: {
+    type: 'string',
+    required: true,
+    minLength: 1,
+    maxLength: 100,
+  },
+  senderPhone: {
+    type: 'string',
+    required: true,
+    minLength: 1,
+    maxLength: 20,
+  },
+  paidAt: {
+    type: 'string',
+    required: true,
+    minLength: 1,
   },
 };
 

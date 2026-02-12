@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { ClientSession } from 'mongoose';
 import { PaymentLinkRepository } from '../repositories/PaymentLinkRepository';
 import { AuditService, AuditContext } from './AuditService';
@@ -37,23 +36,23 @@ export class PaymentLinkManager {
     options?: PaymentLinkManagerOptions
   ): Promise<OperationResult<CreatePaymentLinkResponse>> {
     try {
-      // Generate globally unique identifier
-      const paymentLinkId = this.generateUniqueId();
-
-      // Create payment link data
+      // Create payment link data with temporary linkUrl
+      const tempLinkUrl = `https://chainpaye.com/payment/temp_${Date.now()}`;
       const paymentLinkData = {
         merchantId: request.merchantId,
         userId: request.userId,
+        name: request.name,
         amount: request.amount,
         currency: request.currency,
         description: request.description,
         isActive: true,
-        address: "0x3c45e44daae997b3ac8644ff3fdd13c120634f10",
+        // address: "0x3c45e44daae997b3ac8644ff3fdd13c120634f10",
+        address:request.address,
         token: request.token,
         selectedCurrency: request.selectedCurrency,
         paymentType: request.paymentType,
-        successUrl: request.successUrl || "https://www.chainpaye.com/",
-        linkUrl: `https://www.chainpaye.com/${paymentLinkId}`,
+        successUrl: request.successUrl || "https://chainpaye.com/",
+        linkUrl: tempLinkUrl, // Temporary URL to satisfy required field
         metadata: request.metadata || {}
       };
 
@@ -66,8 +65,19 @@ export class PaymentLinkManager {
         auditContext
       });
 
-      // Map to response DTO
-      const response = this.mapToCreateResponse(paymentLink);
+      // Update the payment link with the correct linkUrl using the MongoDB ObjectId
+      const correctLinkUrl = `https://chainpaye.com/payment/${paymentLink.id}`;
+      const updatedPaymentLink = await this.paymentLinkRepository.updateById(
+        paymentLink.id,
+        { linkUrl: correctLinkUrl },
+        {
+          session: options?.session,
+          skipAudit: true // Skip audit for this internal update
+        }
+      );
+
+      // Map to response DTO using the updated payment link
+      const response = this.mapToCreateResponse(updatedPaymentLink || paymentLink);
 
       return {
         success: true,
@@ -110,7 +120,7 @@ export class PaymentLinkManager {
       if (!paymentLink) {
         return {
           success: false,
-          error: 'Payment link not found',
+          error: 'This payment link could not be found. It may have been removed or the link might be incorrect. Please check the link and try again.',
           retryable: false
         };
       }
@@ -160,7 +170,7 @@ export class PaymentLinkManager {
       if (!existingLink) {
         return {
           success: false,
-          error: 'Payment link not found',
+          error: 'Unable to disable payment link. The link could not be found - it may have already been removed or the link ID is incorrect.',
           retryable: false
         };
       }
@@ -168,7 +178,7 @@ export class PaymentLinkManager {
       if (!existingLink.isActive) {
         return {
           success: false,
-          error: 'Payment link is already disabled',
+          error: 'This payment link is already disabled. No action needed.',
           retryable: false
         };
       }
@@ -226,7 +236,7 @@ export class PaymentLinkManager {
       if (!existingLink) {
         return {
           success: false,
-          error: 'Payment link not found',
+          error: 'Unable to enable payment link. The link could not be found - it may have been removed or the link ID is incorrect.',
           retryable: false
         };
       }
@@ -234,7 +244,7 @@ export class PaymentLinkManager {
       if (existingLink.isActive) {
         return {
           success: false,
-          error: 'Payment link is already enabled',
+          error: 'This payment link is already enabled and ready to accept payments.',
           retryable: false
         };
       }
@@ -356,7 +366,7 @@ export class PaymentLinkManager {
       if (!paymentLink) {
         return {
           success: false,
-          error: 'Payment link not found',
+          error: 'Unable to get payment link status. The link could not be found - it may have been removed or the link ID is incorrect.',
           retryable: false
         };
       }
@@ -403,7 +413,7 @@ export class PaymentLinkManager {
       if (!paymentLink) {
         return {
           success: false,
-          error: 'Payment link not found',
+          error: 'This payment link is not available for transactions. The link could not be found - it may have been removed or expired.',
           retryable: false
         };
       }
@@ -411,7 +421,7 @@ export class PaymentLinkManager {
       if (!paymentLink.isActive) {
         return {
           success: false,
-          error: 'Payment link is disabled and cannot be used for new transactions',
+          error: 'This payment link has been disabled and cannot be used for new transactions. Please contact the merchant for assistance.',
           retryable: false
         };
       }
@@ -431,14 +441,6 @@ export class PaymentLinkManager {
         retryable: this.isRetryableError(error)
       };
     }
-  }
-
-  /**
-   * Generate globally unique identifier for payment links
-   * Requirements: 1.2
-   */
-  private generateUniqueId(): string {
-    return `pl_${randomUUID().replace(/-/g, '')}`;
   }
 
   /**
@@ -463,6 +465,7 @@ export class PaymentLinkManager {
       id: paymentLink._id.toString(),
       merchantId: paymentLink.merchantId,
       userId: paymentLink.userId,
+      name: paymentLink.name,
       amount: paymentLink.amount,
       currency: paymentLink.currency,
       description: paymentLink.description,

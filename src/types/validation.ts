@@ -142,7 +142,7 @@ export const ValidationPatterns = {
 // Common validation functions
 export const ValidationFunctions = {
   isValidCurrency: (value: any): true | string => {
-    return ['NGN', 'USD'].includes(value) ? true : 'Currency must be NGN or USD';
+    return ['NGN', 'USD', 'GBP', 'EUR'].includes(value) ? true : 'Currency must be one of: NGN, USD, GBP, EUR';
   },
   
   isValidAmount: (value: any): true | string => {

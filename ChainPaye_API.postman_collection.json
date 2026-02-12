@@ -1,0 +1,543 @@
+{
+  "info": {
+    "name": "ChainPaye Payment Link API",
+    "description": "Complete API collection for ChainPaye Payment Link System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "paymentLinkId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transactionId", 
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Links",
+      "item": [
+        {
+          "name": "Create Payment Link (USD)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('paymentLinkId', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchantId\": \"merchant-123\",\n  \"userId\": \"user-456\",\n  \"name\": \"Tech Solutions Ltd\",\n  \"amount\": \"250.00\",\n  \"currency\": \"USD\",\n  \"token\": \"USDT\",\n  \"selectedCurrency\": \"USD\",\n  \"paymentType\": \"card\",\n  \"description\": \"Professional services payment\",\n  \"successUrl\": \"https://mysite.com/success\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links"]
+            }
+          }
+        },
+        {
+          "name": "Create Payment Link (GBP)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchantId\": \"merchant-uk-123\",\n  \"userId\": \"user-uk-456\",\n  \"name\": \"London Tech Services\",\n  \"amount\": \"150.00\",\n  \"currency\": \"GBP\",\n  \"token\": \"USDT\",\n  \"selectedCurrency\": \"GBP\",\n  \"paymentType\": \"card\",\n  \"description\": \"UK consulting services\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links"]
+            }
+          }
+        },
+        {
+          "name": "Create Payment Link (EUR)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchantId\": \"merchant-eu-123\",\n  \"userId\": \"user-eu-456\",\n  \"name\": \"Berlin Digital Agency\",\n  \"amount\": \"200.00\",\n  \"currency\": \"EUR\",\n  \"token\": \"USDT\",\n  \"selectedCurrency\": \"EUR\",\n  \"paymentType\": \"card\",\n  \"description\": \"European digital marketing services\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links"]
+            }
+          }
+        },
+        {
+          "name": "Create Payment Link (NGN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchantId\": \"merchant-ng-123\",\n  \"userId\": \"user-ng-456\",\n  \"name\": \"Lagos Tech Hub\",\n  \"amount\": \"50000.00\",\n  \"currency\": \"NGN\",\n  \"token\": \"NGN\",\n  \"selectedCurrency\": \"NGN\",\n  \"paymentType\": \"bank\",\n  \"description\": \"Nigerian local payment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links"]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Link",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment-links/{{paymentLinkId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links", "{{paymentLinkId}}"]
+            }
+          }
+        },
+        {
+          "name": "List Payment Links",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment-links?merchantId=merchant-123&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links"],
+              "query": [
+                {
+                  "key": "merchantId",
+                  "value": "merchant-123"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Payment Link",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment-links/{{paymentLinkId}}/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links", "{{paymentLinkId}}", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Access Payment Link",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.transactionId) {",
+                  "        pm.collectionVariables.set('transactionId', response.data.transactionId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payerInfo\": {\n    \"payername\": \"John Doe\",\n    \"payeraddress\": \"123 Main Street\",\n    \"payercity\": \"New York\",\n    \"payerstate\": \"NY\",\n    \"payercountry\": \"US\",\n    \"payerzipcode\": \"10001\",\n    \"payerphone\": \"+1234567890\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links/{{paymentLinkId}}/access",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links", "{{paymentLinkId}}", "access"]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Link Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment-links/{{paymentLinkId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links", "{{paymentLinkId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Disable Payment Link",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Temporarily disabled for maintenance\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links/{{paymentLinkId}}/disable",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links", "{{paymentLinkId}}", "disable"]
+            }
+          }
+        },
+        {
+          "name": "Enable Payment Link",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Re-enabled after maintenance\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links/{{paymentLinkId}}/enable",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links", "{{paymentLinkId}}", "enable"]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Link Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment-links/{{paymentLinkId}}/transactions?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links", "{{paymentLinkId}}", "transactions"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Create Transaction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('transactionId', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentLinkId\": \"{{paymentLinkId}}\",\n  \"payerInfo\": {\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"+1234567890\"\n  },\n  \"metadata\": {\n    \"source\": \"postman_test\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            }
+          }
+        },
+        {
+          "name": "Get Transaction",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}"]
+            }
+          }
+        },
+        {
+          "name": "Initialize Payment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}/initialize",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}", "initialize"]
+            }
+          }
+        },
+        {
+          "name": "Update Transaction State",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newState\": \"PAID\",\n  \"reason\": \"Payment confirmed by customer\",\n  \"metadata\": {\n    \"confirmedBy\": \"manual_verification\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}/state",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}", "state"]
+            }
+          }
+        },
+        {
+          "name": "Get State History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}/state-history",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions", "{{transactionId}}", "state-history"]
+            }
+          }
+        },
+        {
+          "name": "Record Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"250.00\",\n  \"currency\": \"USD\",\n  \"senderName\": \"John Doe\",\n  \"senderPhone\": \"+1234567890\",\n  \"paidAt\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/record-transaction/{{transactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["record-transaction", "{{transactionId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ChainPaye Direct Access",
+      "item": [
+        {
+          "name": "Direct Access (GET)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{paymentLinkId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{paymentLinkId}}"]
+            }
+          }
+        },
+        {
+          "name": "Direct Access (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payerInfo\": {\n    \"payername\": \"Jane Smith\",\n    \"payerphone\": \"+1987654321\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{paymentLinkId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{paymentLinkId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error Testing",
+      "item": [
+        {
+          "name": "Invalid Currency",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchantId\": \"test-merchant\",\n  \"userId\": \"test-user\",\n  \"name\": \"Test Business\",\n  \"amount\": \"100.00\",\n  \"currency\": \"JPY\",\n  \"token\": \"USDT\",\n  \"selectedCurrency\": \"JPY\",\n  \"paymentType\": \"card\",\n  \"description\": \"Invalid currency test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links"]
+            }
+          }
+        },
+        {
+          "name": "Invalid Payment Type (NGN + Card)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchantId\": \"test-merchant\",\n  \"userId\": \"test-user\",\n  \"name\": \"Test Business\",\n  \"amount\": \"10000.00\",\n  \"currency\": \"NGN\",\n  \"token\": \"NGN\",\n  \"selectedCurrency\": \"NGN\",\n  \"paymentType\": \"card\",\n  \"description\": \"Invalid payment type test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links"]
+            }
+          }
+        },
+        {
+          "name": "Missing Required Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchantId\": \"test-merchant\",\n  \"amount\": \"100.00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment-links",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links"]
+            }
+          }
+        },
+        {
+          "name": "Non-existent Payment Link",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payment-links/nonexistent123456789",
+              "host": ["{{baseUrl}}"],
+              "path": ["payment-links", "nonexistent123456789"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

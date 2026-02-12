@@ -7,7 +7,7 @@ import { PaginationParams } from '../types/common';
 export interface TransactionFilter {
   paymentLinkId?: string;
   state?: TransactionState | TransactionState[];
-  currency?: 'NGN' | 'USD';
+  currency?: 'NGN' | 'USD' | 'GBP' | 'EUR';
   amountMin?: string;
   amountMax?: string;
   createdAfter?: Date;

@@ -11,6 +11,7 @@ export enum TransactionState {
 export interface IPayerInfo {
   email?: string;
   phone?: string;
+  name?: string; // Added sender name
   metadata?: Record<string, any>;
 }
 
@@ -23,6 +24,14 @@ export interface ITransaction extends Document {
   currency: string;
   payerInfo?: IPayerInfo;
   toronetReference?: string;
+  
+  // Payment recording fields
+  actualAmountPaid?: string;        // Amount actually paid
+  senderName?: string;              // Name of person who sent payment
+  senderPhone?: string;             // Phone number of sender
+  paidAt?: Date;                    // When payment was completed
+  recordedAt?: Date;                // When we recorded the transaction
+  
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +50,10 @@ const PayerInfoSchema: Schema = new Schema({
     }
   },
   phone: {
+    type: String,
+    trim: true,
+  },
+  name: {
     type: String,
     trim: true,
   },
@@ -90,8 +103,8 @@ const TransactionSchema: Schema = new Schema(
       type: String,
       required: [true, "Currency is required"],
       enum: {
-        values: ['NGN', 'USD'],
-        message: "Currency must be either NGN or USD"
+        values: ['NGN', 'USD', 'GBP', 'EUR'],
+        message: "Currency must be one of: NGN, USD, GBP, EUR"
       }
     },
     payerInfo: {
@@ -103,6 +116,36 @@ const TransactionSchema: Schema = new Schema(
       trim: true,
       index: true,
       sparse: true, // Allow multiple null values
+    },
+    actualAmountPaid: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: function(value: string) {
+          if (!value) return true; // Optional field
+          const numValue = parseFloat(value);
+          return !isNaN(numValue) && numValue > 0 && (numValue * 10000) % 1 === 0;
+        },
+        message: "Actual amount paid must be a positive number string with at most 4 decimal places"
+      }
+    },
+    senderName: {
+      type: String,
+      trim: true,
+      maxlength: [100, "Sender name cannot exceed 100 characters"]
+    },
+    senderPhone: {
+      type: String,
+      trim: true,
+      maxlength: [20, "Sender phone cannot exceed 20 characters"]
+    },
+    paidAt: {
+      type: Date,
+      index: true,
+    },
+    recordedAt: {
+      type: Date,
+      index: true,
     },
     metadata: {
       type: Schema.Types.Mixed,

@@ -7,6 +7,14 @@ export interface CreateTransactionRequest {
   metadata?: Record<string, any>;
 }
 
+export interface RecordTransactionRequest {
+  amount: string;
+  currency: string;
+  senderName: string;
+  senderPhone: string;
+  paidAt: string; // ISO date string
+}
+
 export interface CreateTransactionResponse {
   id: string;
   paymentLinkId: string;
@@ -16,6 +24,22 @@ export interface CreateTransactionResponse {
   currency: string;
   payerInfo?: IPayerInfo;
   metadata?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RecordTransactionResponse {
+  id: string;
+  paymentLinkId: string;
+  reference: string;
+  state: TransactionState;
+  amount: string;
+  currency: string;
+  actualAmountPaid: string;
+  senderName: string;
+  senderPhone: string;
+  paidAt: Date;
+  recordedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }

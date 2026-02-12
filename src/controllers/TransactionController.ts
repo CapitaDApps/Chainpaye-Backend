@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { TransactionManager } from '../services/TransactionManager';
 import { StateManager } from '../services/StateManager';
-import { CreateTransactionRequest, StateTransitionRequest } from '../types/transaction';
+import { CreateTransactionRequest, StateTransitionRequest, RecordTransactionRequest, RecordTransactionResponse } from '../types/transaction';
 import { Validator } from '../types/validation';
-import { createTransactionSchema, stateTransitionSchema } from '../types/schemas';
+import { createTransactionSchema, stateTransitionSchema, RecordTransactionSchema } from '../types/schemas';
+import { ApiResponse } from '../types/common';
+import { randomUUID } from 'crypto';
 
 export class TransactionController {
   private readonly transactionManager: TransactionManager;
@@ -48,7 +50,7 @@ export class TransactionController {
       if (error instanceof Error) {
         if (error.message.includes('not found')) {
           res.status(404).json({
-            error: 'Payment link not found',
+            error: 'This payment link is not available for transactions. It may have been removed or expired.',
             message: error.message,
             correlationId
           });
@@ -57,7 +59,7 @@ export class TransactionController {
         
         if (error.message.includes('disabled')) {
           res.status(400).json({
-            error: 'Payment link disabled',
+            error: 'This payment link has been disabled and cannot accept new transactions.',
             message: error.message,
             correlationId
           });
@@ -308,7 +310,7 @@ export class TransactionController {
    */
   getTransactionsByPaymentLink = async (req: Request, res: Response): Promise<void> => {
     try {
-      const correlationId = req.headers['x-correlation-id'] as string || crypto.randomUUID();
+      const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
       const paymentLinkId = Array.isArray(req.params.linkId) ? req.params.linkId[0] : req.params.linkId;
 
       if (!paymentLinkId) {
@@ -335,13 +337,115 @@ export class TransactionController {
       });
 
     } catch (error) {
-      const correlationId = req.headers['x-correlation-id'] as string || crypto.randomUUID();
+      const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
       
       res.status(500).json({
         error: 'Internal server error',
         message: 'Failed to retrieve transactions',
         correlationId
       });
+    }
+  };
+
+  /**
+   * Record transaction as successful with payment details
+   * POST /record-transaction/:transactionId
+   */
+  recordTransaction = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
+      const transactionId = Array.isArray(req.params.transactionId) ? req.params.transactionId[0] : req.params.transactionId;
+
+      if (!transactionId) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Transaction ID is required',
+          message: 'Transaction ID parameter is missing',
+          timestamp: new Date(),
+          correlationId
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      // Validate request body
+      const validationResult = Validator.validate(req.body, RecordTransactionSchema);
+      if (!validationResult.isValid) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Validation failed',
+          message: validationResult.errors.map(e => e.message).join(', '),
+          timestamp: new Date(),
+          correlationId
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      const recordRequest: RecordTransactionRequest = req.body;
+
+      // Record the transaction
+      const result = await this.transactionManager.recordTransaction(transactionId, recordRequest);
+
+      const response: ApiResponse<RecordTransactionResponse> = {
+        success: true,
+        data: result,
+        message: 'Transaction recorded successfully',
+        timestamp: new Date(),
+        correlationId
+      };
+
+      res.status(200).json(response);
+
+    } catch (error) {
+      const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
+      
+      if (error instanceof Error) {
+        if (error.message.includes('not found')) {
+          const response: ApiResponse = {
+            success: false,
+            error: 'Transaction not found',
+            message: error.message,
+            timestamp: new Date(),
+            correlationId
+          };
+          res.status(404).json(response);
+          return;
+        }
+        
+        if (error.message.includes('already completed') || error.message.includes('already recorded')) {
+          const response: ApiResponse = {
+            success: false,
+            error: 'Transaction already processed',
+            message: error.message,
+            timestamp: new Date(),
+            correlationId
+          };
+          res.status(400).json(response);
+          return;
+        }
+
+        if (error.message.includes('Currency mismatch') || error.message.includes('Invalid')) {
+          const response: ApiResponse = {
+            success: false,
+            error: 'Validation error',
+            message: error.message,
+            timestamp: new Date(),
+            correlationId
+          };
+          res.status(400).json(response);
+          return;
+        }
+      }
+
+      const response: ApiResponse = {
+        success: false,
+        error: 'Internal server error',
+        message: 'Failed to record transaction',
+        timestamp: new Date(),
+        correlationId
+      };
+      res.status(500).json(response);
     }
   };
 }

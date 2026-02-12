@@ -1,13 +1,34 @@
-import express, { Application, Request, Response, NextFunction } from "express";
+import express, { Application } from "express";
+import cors from "cors";
 import dotenv from "dotenv";
 import { requestLogger } from "./middleware/requestLogger";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
+import { generalRateLimit, burstProtectionRateLimit } from "./middleware/rateLimiter";
 import routes from "./routes";
 
 // Load environment variables
 dotenv.config();
 
 const app: Application = express();
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || '*', // Allow all origins in development, specify in production
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id', 'X-Requested-With'],
+  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+};
+
+// Apply CORS before other middleware
+app.use(cors(corsOptions));
+
+// Apply burst protection first (most restrictive)
+app.use(burstProtectionRateLimit);
+
+// Apply general rate limiting
+app.use(generalRateLimit);
 
 // Basic middleware
 app.use(express.json({ limit: '10mb' }));

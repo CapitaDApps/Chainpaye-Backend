@@ -4,8 +4,9 @@ export interface IPaymentLink extends Document {
   id: string;
   merchantId: string;
   userId: string; // User who created the payment link
+  name: string; // Owner/business name to be displayed
   amount: string;
-  currency: 'NGN' | 'USD';
+  currency: 'NGN' | 'USD' | 'GBP' | 'EUR';
   description?: string;
   isActive: boolean;
   address: string; // Blockchain address for payments
@@ -33,6 +34,13 @@ const PaymentLinkSchema: Schema = new Schema(
       trim: true,
       index: true,
     },
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+      minlength: [1, "Name cannot be empty"],
+      maxlength: [100, "Name cannot exceed 100 characters"],
+    },
     amount: {
       type: String,
       required: [true, "Amount is required"],
@@ -49,8 +57,8 @@ const PaymentLinkSchema: Schema = new Schema(
       type: String,
       required: [true, "Currency is required"],
       enum: {
-        values: ['NGN', 'USD'],
-        message: "Currency must be either NGN or USD"
+        values: ['NGN', 'USD', 'GBP', 'EUR'],
+        message: "Currency must be one of: NGN, USD, GBP, EUR"
       }
     },
     description: {
@@ -88,8 +96,8 @@ const PaymentLinkSchema: Schema = new Schema(
       },
       validate: {
         validator: function(this: IPaymentLink, value: string) {
-          // Card payments only supported for USD
-          if (value === 'card' && this.currency !== 'USD') {
+          // Card payments supported for USD, GBP, EUR
+          if (value === 'card' && !['USD', 'GBP', 'EUR'].includes(this.currency)) {
             return false;
           }
           // NGN should use bank transfer
@@ -98,21 +106,21 @@ const PaymentLinkSchema: Schema = new Schema(
           }
           return true;
         },
-        message: "Card payments are only supported in USD. NGN must use bank transfer."
+        message: "Card payments are supported for USD, GBP, EUR. NGN must use bank transfer."
       }
     },
     successUrl: {
       type: String,
       required: [true, "Success URL is required"],
-      default: "https://www.chainpaye.com/",
+      default: "https://chainpaye.com/",
       trim: true,
     },
-    // linkUrl: {
-    //   type: String,
-    //   required: [true, "Link URL is required"],
-    //   trim: true,
-    //   unique: true,
-    // },
+    linkUrl: {
+      type: String,
+      required: [true, "Link URL is required"],
+      trim: true,
+      unique: true,
+    },
     metadata: {
       type: Schema.Types.Mixed,
       default: {}

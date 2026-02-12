@@ -7,7 +7,7 @@ import { AuditService } from '../services/AuditService';
 export interface PaymentLinkFilter {
   merchantId?: string;
   isActive?: boolean;
-  currency?: 'NGN' | 'USD';
+  currency?: 'NGN' | 'USD' | 'GBP' | 'EUR';
   amountMin?: string;
   amountMax?: string;
   createdAfter?: Date;

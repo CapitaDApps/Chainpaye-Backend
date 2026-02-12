@@ -454,7 +454,7 @@ export class PaymentLinkController {
 
       if (!result.success || !result.data) {
         res.status(404).json({
-          error: 'Payment link not found',
+          error: 'This payment link could not be found. It may have been removed or the link might be incorrect. Please check the link and try again.',
           correlationId
         });
         return;
@@ -466,6 +466,7 @@ export class PaymentLinkController {
       const verificationResponse: PaymentLinkVerificationResponse = {
         id: paymentLink.id,
         isActive: paymentLink.isActive,
+        name: paymentLink.name,
         address: paymentLink.address,
         token: paymentLink.token,
         currency: paymentLink.currency,
@@ -515,7 +516,7 @@ export class PaymentLinkController {
 
       if (!result.success || !result.data) {
         res.status(404).json({
-          error: 'Payment link not found',
+          error: 'This payment link is not available. It may have been removed or expired. Please contact the merchant for a new payment link.',
           correlationId
         });
         return;
@@ -523,7 +524,7 @@ export class PaymentLinkController {
 
       if (!result.data.isActive) {
         res.status(400).json({
-          error: 'Payment link is disabled',
+          error: 'This payment link has been disabled and cannot accept payments. Please contact the merchant for assistance.',
           correlationId
         });
         return;
@@ -535,6 +536,7 @@ export class PaymentLinkController {
       const verificationData: PaymentLinkVerificationResponse = {
         id: paymentLinkData.id,
         isActive: paymentLinkData.isActive,
+        name: paymentLinkData.name,
         address: paymentLinkData.address,
         token: paymentLinkData.token,
         currency: paymentLinkData.currency,
@@ -592,6 +594,7 @@ export class PaymentLinkController {
         // Return comprehensive response
         const accessResponse = {
           id: paymentLinkData.id,
+          name: paymentLinkData.name,
           amount: paymentLinkData.amount,
           currency: paymentLinkData.currency,
           selectedCurrency: paymentLinkData.selectedCurrency,
@@ -634,6 +637,7 @@ export class PaymentLinkController {
         // Still return payment link details even if Toronet fails
         const fallbackResponse = {
           id: paymentLinkData.id,
+          name: paymentLinkData.name,
           amount: paymentLinkData.amount,
           currency: paymentLinkData.currency,
           selectedCurrency: paymentLinkData.selectedCurrency,

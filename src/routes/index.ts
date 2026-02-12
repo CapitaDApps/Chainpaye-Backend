@@ -2,11 +2,40 @@ import { Router } from 'express';
 import paymentLinksRouter from './paymentLinks';
 import transactionsRouter from './transactions';
 import chainpayeRouter from './chainpaye';
+import { TransactionController } from '../controllers/TransactionController';
+import { TransactionManager } from '../services/TransactionManager';
+import { StateManager } from '../services/StateManager';
+import { TransactionRepository } from '../repositories/TransactionRepository';
+import { PaymentLinkRepository } from '../repositories/PaymentLinkRepository';
+import { PaymentInitializationRepository } from '../repositories/PaymentInitializationRepository';
+import { AuditService } from '../services/AuditService';
+import { validateRequest } from '../middleware/validation';
+import { RecordTransactionSchema } from '../types/schemas';
+import { asyncHandler } from '../middleware/errorHandler';
+import { 
+  healthCheckRateLimit, 
+  recordTransactionRateLimit 
+} from '../middleware/rateLimiter';
 
 const router = Router();
 
-// Health check endpoint
-router.get('/health', (req, res) => {
+// Initialize services for record transaction endpoint
+const transactionRepository = new TransactionRepository();
+const paymentLinkRepository = new PaymentLinkRepository();
+const paymentInitializationRepository = new PaymentInitializationRepository();
+const auditService = new AuditService();
+const stateManager = new StateManager(transactionRepository, auditService);
+const transactionManager = new TransactionManager(
+  transactionRepository,
+  paymentLinkRepository,
+  paymentInitializationRepository,
+  stateManager,
+  auditService
+);
+const transactionController = new TransactionController(transactionManager, stateManager);
+
+// Health check endpoint with specific rate limiting
+router.get('/health', healthCheckRateLimit, (req, res) => {
   res.json({
     success: true,
     message: 'Payment Link System API is running',
@@ -30,7 +59,15 @@ router.post('/test', (req, res) => {
 router.use('/payment-links', paymentLinksRouter);
 router.use('/transactions', transactionsRouter);
 
-// ChainPaye direct link routes (for https://www.chainpaye.com/{id})
+// Record transaction endpoint (standalone) with specific rate limiting
+router.post(
+  '/record-transaction/:transactionId',
+  recordTransactionRateLimit,
+  validateRequest({ body: RecordTransactionSchema }),
+  asyncHandler(transactionController.recordTransaction.bind(transactionController))
+);
+
+// ChainPaye direct link routes (for https://chainpaye.com/payment/{id})
 // These handle direct payment link access and should be last to avoid conflicts
 router.use('/', chainpayeRouter);
 

@@ -8,7 +8,7 @@ export interface FiatVerificationFilter {
   transactionId?: string;
   toronetReference?: string;
   verificationMethod?: 'POLL' | 'WEBHOOK' | 'MANUAL';
-  currency?: 'NGN' | 'USD';
+  currency?: 'NGN' | 'USD' | 'GBP' | 'EUR';
   amountMin?: string;
   amountMax?: string;
   confirmedAfter?: Date;
@@ -218,7 +218,7 @@ export class FiatVerificationRepository extends BaseRepository<IFiatVerification
   async findByAmountRange(
     minAmount: string,
     maxAmount: string,
-    currency?: 'NGN' | 'USD',
+    currency?: 'NGN' | 'USD' | 'GBP' | 'EUR',
     options?: RepositoryOptions
   ): Promise<IFiatVerification[]> {
     const filter: FilterQuery<IFiatVerification> = {

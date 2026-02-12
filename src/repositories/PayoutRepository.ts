@@ -8,7 +8,7 @@ export interface PayoutFilter {
   transactionId?: string;
   merchantId?: string;
   status?: 'PENDING' | 'SUCCESS' | 'FAILED';
-  currency?: 'NGN' | 'USD';
+  currency?: 'NGN' | 'USD' | 'GBP' | 'EUR';
   amountMin?: string;
   amountMax?: string;
   createdAfter?: Date;

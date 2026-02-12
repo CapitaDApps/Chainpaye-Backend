@@ -13,6 +13,14 @@ import { PaymentInitializationRepository } from '../repositories/PaymentInitiali
 import { AuditService } from '../services/AuditService';
 import { AuditLogRepository } from '../repositories/AuditLogRepository';
 import { PaymentLinkManager } from '../services/PaymentLinkManager';
+import { 
+  createPaymentLinkRateLimit,
+  paymentAccessRateLimit,
+  readOnlyRateLimit,
+  sensitiveOperationRateLimit,
+  merchantRateLimit,
+  userRateLimit
+} from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -89,6 +97,9 @@ const merchantIdQuerySchema = {
  */
 router.post(
   '/',
+  createPaymentLinkRateLimit,
+  merchantRateLimit,
+  userRateLimit,
   validateRequest({ body: CreatePaymentLinkSchema }),
   asyncHandler(paymentLinkController.createPaymentLink.bind(paymentLinkController))
 );
@@ -100,6 +111,7 @@ router.post(
  */
 router.get(
   '/:id',
+  readOnlyRateLimit,
   validateRequest({ params: idParamSchema }),
   asyncHandler(paymentLinkController.getPaymentLink.bind(paymentLinkController))
 );
@@ -111,6 +123,8 @@ router.get(
  */
 router.get(
   '/',
+  readOnlyRateLimit,
+  merchantRateLimit,
   validateRequest({ query: merchantIdQuerySchema }),
   validatePagination(),
   asyncHandler(paymentLinkController.listPaymentLinks.bind(paymentLinkController))
@@ -123,6 +137,7 @@ router.get(
  */
 router.patch(
   '/:id/disable',
+  sensitiveOperationRateLimit,
   validateRequest({ 
     params: idParamSchema,
     body: DisablePaymentLinkSchema 
@@ -137,6 +152,7 @@ router.patch(
  */
 router.patch(
   '/:id/enable',
+  sensitiveOperationRateLimit,
   validateRequest({ 
     params: idParamSchema,
     body: DisablePaymentLinkSchema 
@@ -151,6 +167,7 @@ router.patch(
  */
 router.get(
   '/:id/status',
+  readOnlyRateLimit,
   validateRequest({ params: idParamSchema }),
   asyncHandler(paymentLinkController.getPaymentLinkStatus.bind(paymentLinkController))
 );
@@ -162,6 +179,7 @@ router.get(
  */
 router.get(
   '/:linkId/transactions',
+  readOnlyRateLimit,
   validateRequest({ params: { linkId: idParamSchema.id } }),
   validatePagination(),
   asyncHandler(transactionController.getTransactionsByPaymentLink.bind(transactionController))
@@ -174,6 +192,7 @@ router.get(
  */
 router.get(
   '/:id/verify',
+  readOnlyRateLimit,
   validateRequest({ params: idParamSchema }),
   asyncHandler(paymentLinkController.verifyPaymentLink.bind(paymentLinkController))
 );
@@ -185,6 +204,7 @@ router.get(
  */
 router.post(
   '/:id',
+  paymentAccessRateLimit,
   validateRequest({ params: idParamSchema }),
   asyncHandler(paymentLinkController.accessPaymentLink.bind(paymentLinkController))
 );
@@ -196,6 +216,7 @@ router.post(
  */
 router.post(
   '/:id/access',
+  paymentAccessRateLimit,
   validateRequest({ params: idParamSchema }),
   asyncHandler(paymentLinkController.accessPaymentLink.bind(paymentLinkController))
 );

@@ -6,12 +6,15 @@ import { TransactionRepository } from '../repositories/TransactionRepository';
 import { PaymentLinkRepository } from '../repositories/PaymentLinkRepository';
 import { PaymentInitializationRepository } from '../repositories/PaymentInitializationRepository';
 import { AuditService } from '../services/AuditService';
-import { AuditLogRepository } from '../repositories/AuditLogRepository';
+import { 
+  recordTransactionRateLimit, 
+  readOnlyRateLimit, 
+  sensitiveOperationRateLimit 
+} from '../middleware/rateLimiter';
 
 const router = Router();
 
 // Initialize repositories
-const auditLogRepository = new AuditLogRepository();
 const transactionRepository = new TransactionRepository();
 const paymentLinkRepository = new PaymentLinkRepository();
 const paymentInitializationRepository = new PaymentInitializationRepository();
@@ -30,11 +33,11 @@ const transactionManager = new TransactionManager(
 // Initialize controller
 const transactionController = new TransactionController(transactionManager, stateManager);
 
-// Transaction routes
-router.post('/', transactionController.createTransaction);
-router.get('/:id', transactionController.getTransaction);
-router.post('/:id/initialize', transactionController.initializePayment);
-router.patch('/:id/state', transactionController.transitionState);
-router.get('/:id/state-history', transactionController.getStateHistory);
+// Transaction routes with rate limiting
+router.post('/', recordTransactionRateLimit, transactionController.createTransaction);
+router.get('/:id', readOnlyRateLimit, transactionController.getTransaction);
+router.post('/:id/initialize', recordTransactionRateLimit, transactionController.initializePayment);
+router.patch('/:id/state', sensitiveOperationRateLimit, transactionController.transitionState);
+router.get('/:id/state-history', readOnlyRateLimit, transactionController.getStateHistory);
 
 export default router;
