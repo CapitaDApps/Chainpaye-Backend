@@ -12,6 +12,7 @@ export interface RecordTransactionRequest {
   currency: string;
   senderName: string;
   senderPhone: string;
+  senderEmail?: string; // Optional email field
   paidAt: string; // ISO date string
 }
 

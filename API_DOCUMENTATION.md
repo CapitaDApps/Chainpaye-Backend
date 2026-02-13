@@ -363,6 +363,21 @@ Verify payment link and get payment details (public endpoint for verification).
 }
 ```
 
+### POST /payment-links/:id/verify
+**⚠️ DEPRECATED**: This endpoint returns an error message directing to the correct verification endpoint.
+
+**Correct Endpoint**: Use `POST /transactions/:reference/verify` instead.
+
+**Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "message": "Payment verification should be done via the transactions endpoint",
+  "correctEndpoint": "POST /api/v1/transactions/{transactionReference}/verify",
+  "note": "Use the transaction reference (not payment link ID) with the transactions verify endpoint"
+}
+```
+
 ### POST /payment-links/:id/access
 Handle payment link access (when user opens the payment link).
 
@@ -430,10 +445,19 @@ Get transactions for a specific payment link.
 - `linkId` (path): Payment link ID
 
 **Query Parameters:**
+- `status` (optional): Filter by transaction state (`PENDING`, `INITIALIZED`, `PAID`, `COMPLETED`, `PAYOUT_FAILED`)
 - `page` (optional): Page number (default: 1)
 - `limit` (optional): Items per page (default: 10, max: 100)
 - `sortBy` (optional): Field to sort by
 - `sortOrder` (optional): `asc` or `desc`
+
+**Example Requests:**
+```
+GET /payment-links/507f1f77bcf86cd799439011/transactions
+GET /payment-links/507f1f77bcf86cd799439011/transactions?status=COMPLETED
+GET /payment-links/507f1f77bcf86cd799439011/transactions?status=PENDING&page=1&limit=5
+GET /payment-links/507f1f77bcf86cd799439011/transactions?sortBy=paidAt&sortOrder=desc
+```
 
 **Response (200 OK):**
 ```json
@@ -471,6 +495,60 @@ Get transactions for a specific payment link.
 ---
 
 ## Transactions
+
+### GET /transactions
+Get all transactions with optional filtering.
+
+**Query Parameters:**
+- `state` (optional): Filter by transaction state (`PENDING`, `INITIALIZED`, `PAID`, `COMPLETED`, `PAYOUT_FAILED`)
+- `currency` (optional): Filter by currency (`NGN`, `USD`, `GBP`, `EUR`)
+- `paymentLinkId` (optional): Filter by payment link ID
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20, max: 100)
+- `sortBy` (optional): Field to sort by
+- `sortOrder` (optional): `asc` or `desc`
+
+**Example Requests:**
+```
+GET /transactions
+GET /transactions?state=COMPLETED
+GET /transactions?state=PENDING&currency=USD
+GET /transactions?paymentLinkId=507f1f77bcf86cd799439011
+GET /transactions?state=PAID&sortBy=paidAt&sortOrder=desc&page=1&limit=10
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "transactions": [
+      {
+        "id": "trans_789012",
+        "paymentLinkId": "507f1f77bcf86cd799439011",
+        "reference": "ref_unique_123",
+        "state": "COMPLETED",
+        "amount": "250.00",
+        "currency": "USD",
+        "payerInfo": {
+          "email": "user@example.com",
+          "phone": "+1234567890"
+        },
+        "toronetReference": "toro_ref_123456",
+        "metadata": {},
+        "createdAt": "2026-02-04T09:30:00.000Z",
+        "updatedAt": "2026-02-04T09:35:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  },
+  "message": "Transactions retrieved successfully",
+  "timestamp": "2026-02-04T10:00:00.000Z",
+  "correlationId": "trans123-def456"
+}
+```
 
 ### POST /transactions
 Create a new transaction.
@@ -567,6 +645,69 @@ Initialize payment for a transaction.
 }
 ```
 
+### POST /transactions/:id/verify
+Start immediate payment verification (3-second checks for 15 minutes, then hourly background checks).
+
+**Parameters:**
+- `id` (path): Transaction ID
+
+**Headers:**
+- `admin` (required): Toronet admin address
+- `adminpwd` (required): Toronet admin password
+
+**Request Body:**
+```json
+{
+  "senderName": "string (required, 1-100 chars)",
+  "senderPhone": "string (required, 1-20 chars)",
+  "senderEmail": "string (required, valid email)",
+  "currency": "NGN | USD | GBP | EUR (required)",
+  "txid": "string (required, Toronet transaction reference)",
+  "paymentType": "bank | card (required)",
+  "amount": "string (required, decimal as string)",
+  "successUrl": "string (optional, webhook URL)",
+  "paymentLinkId": "string (optional, payment link ID)"
+}
+```
+
+**Example Request:**
+```json
+{
+  "senderName": "John Doe",
+  "senderPhone": "+1234567890",
+  "senderEmail": "john.doe@example.com",
+  "currency": "USD",
+  "txid": "toro_ref_123456",
+  "paymentType": "card",
+  "amount": "250.00",
+  "successUrl": "https://merchant.com/webhook",
+  "paymentLinkId": "507f1f77bcf86cd799439011"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Verification started. You will receive an email confirmation when payment is confirmed.",
+  "data": {
+    "transactionId": "trans_123",
+    "email": "john.doe@example.com",
+    "verificationPhase": "immediate",
+    "checkInterval": "3 seconds",
+    "duration": "15 minutes"
+  },
+  "timestamp": "2026-02-04T10:00:00.000Z",
+  "correlationId": "verify123-def456"
+}
+```
+
+**Verification Process:**
+1. **Immediate Phase (0-15 minutes)**: Checks Toronet API every 3 seconds
+2. **Background Phase (15 min - 24 hours)**: Hourly checks via cron job
+3. **Expiration (24 hours)**: Transaction marked as failed, expiration email sent
+4. **On Confirmation**: Email sent, webhook called, transaction updated to PAID
+
 ### PATCH /transactions/:id/state
 Transition transaction state.
 
@@ -635,6 +776,43 @@ Get transaction state history.
 }
 ```
 
+### GET /transactions/:id/status
+Check transaction status with admin credentials.
+
+**Parameters:**
+- `id` (path): Transaction ID
+
+**Headers:**
+- `admin` (required): Toronet admin address
+- `adminpwd` (required): Toronet admin password
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "transactionId": "trans_123",
+    "reference": "TXN_REF_123",
+    "state": "PAID",
+    "amount": "250.00",
+    "currency": "USD",
+    "paidAt": "2026-02-04T09:35:00.000Z",
+    "senderName": "John Doe",
+    "senderPhone": "+1234567890",
+    "senderEmail": "john.doe@example.com",
+    "toronetReference": "toro_ref_123456",
+    "verificationStartedAt": "2026-02-04T09:30:00.000Z",
+    "lastVerificationCheck": "2026-02-04T09:35:00.000Z",
+    "expiresAt": "2026-02-05T09:30:00.000Z",
+    "createdAt": "2026-02-04T09:30:00.000Z",
+    "updatedAt": "2026-02-04T09:35:00.000Z"
+  },
+  "message": "Transaction status retrieved successfully",
+  "timestamp": "2026-02-04T10:00:00.000Z",
+  "correlationId": "status123-def456"
+}
+```
+
 ### POST /record-transaction/:transactionId
 Record transaction completion (standalone endpoint).
 
@@ -648,6 +826,7 @@ Record transaction completion (standalone endpoint).
   "currency": "NGN | USD | GBP | EUR (required)",
   "senderName": "string (required, 1-100 chars)",
   "senderPhone": "string (required, 1-20 chars)",
+  "senderEmail": "string (optional, valid email)",
   "paidAt": "string (required, ISO 8601 datetime)"
 }
 ```
@@ -659,6 +838,7 @@ Record transaction completion (standalone endpoint).
   "currency": "USD",
   "senderName": "John Doe",
   "senderPhone": "+1234567890",
+  "senderEmail": "john.doe@example.com",
   "paidAt": "2026-02-04T09:35:00.000Z"
 }
 ```

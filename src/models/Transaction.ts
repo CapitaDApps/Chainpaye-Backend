@@ -32,6 +32,11 @@ export interface ITransaction extends Document {
   paidAt?: Date;                    // When payment was completed
   recordedAt?: Date;                // When we recorded the transaction
   
+  // Background verification fields
+  lastVerificationCheck?: Date;     // Last time we checked with Toronet
+  verificationStartedAt?: Date;     // When verification process started
+  expiresAt?: Date;                 // When transaction expires (24 hours from creation)
+  
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -146,6 +151,21 @@ const TransactionSchema: Schema = new Schema(
     recordedAt: {
       type: Date,
       index: true,
+    },
+    lastVerificationCheck: {
+      type: Date,
+      index: true,
+    },
+    verificationStartedAt: {
+      type: Date,
+      index: true,
+    },
+    expiresAt: {
+      type: Date,
+      index: true,
+      default: function() {
+        return new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from creation
+      }
     },
     metadata: {
       type: Schema.Types.Mixed,

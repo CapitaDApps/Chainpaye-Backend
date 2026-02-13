@@ -180,7 +180,34 @@ router.get(
 router.get(
   '/:linkId/transactions',
   readOnlyRateLimit,
-  validateRequest({ params: { linkId: idParamSchema.id } }),
+  validateRequest({ 
+    params: { linkId: idParamSchema.id },
+    query: {
+      status: {
+        type: 'string' as const,
+        required: false,
+        enum: ['PENDING', 'INITIALIZED', 'PAID', 'COMPLETED', 'PAYOUT_FAILED']
+      },
+      page: {
+        type: 'string' as const,
+        required: false
+      },
+      limit: {
+        type: 'string' as const,
+        required: false
+      },
+      sortBy: {
+        type: 'string' as const,
+        required: false,
+        maxLength: 50
+      },
+      sortOrder: {
+        type: 'string' as const,
+        required: false,
+        enum: ['asc', 'desc']
+      }
+    }
+  }),
   validatePagination(),
   asyncHandler(transactionController.getTransactionsByPaymentLink.bind(transactionController))
 );
@@ -196,6 +223,54 @@ router.get(
   validateRequest({ params: idParamSchema }),
   asyncHandler(paymentLinkController.verifyPaymentLink.bind(paymentLinkController))
 );
+
+/**
+ * @route POST /payment-links/:id/verify
+ * @desc Handle payment verification request (redirects to transaction verify)
+ * @access Public
+ */
+router.post('/:id/verify', paymentAccessRateLimit, async (req, res) => {
+  try {
+    const paymentLinkId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    
+    // Validate admin credentials
+    const admin = req.headers.admin as string;
+    const adminpwd = req.headers.adminpwd as string;
+    
+    if (!admin || !adminpwd) {
+      return res.status(401).json({
+        success: false,
+        message: 'Admin credentials required in headers'
+      });
+    }
+
+    // Get the transaction ID from request body
+    const { transactionId } = req.body;
+    
+    if (!transactionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Transaction ID is required in request body'
+      });
+    }
+
+    // Return helpful error message with correct endpoint
+    return res.status(400).json({
+      success: false,
+      message: 'Payment verification should be done via the transactions endpoint',
+      correctEndpoint: `POST /api/v1/transactions/${transactionId}/verify`,
+      note: 'Use the transaction ID (not payment link ID) with the transactions verify endpoint'
+    });
+
+  } catch (error) {
+    console.error('Error in payment link verify endpoint:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 /**
  * @route POST /payment-links/:id

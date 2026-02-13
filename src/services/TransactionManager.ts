@@ -311,17 +311,127 @@ export class TransactionManager {
   }
 
   /**
-   * Get transactions for a payment link
+   * Get transactions by filter with pagination and sorting
    */
-  async getTransactionsByPaymentLink(paymentLinkId: string, page: number = 1, limit: number = 20): Promise<{
+  async getTransactionsByFilter(options: {
+    state?: string;
+    currency?: string;
+    paymentLinkId?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<{
     transactions: TransactionStatusResponse[];
     total: number;
     page: number;
     limit: number;
   }> {
+    const {
+      state,
+      currency,
+      paymentLinkId,
+      page = 1,
+      limit = 20,
+      sortBy,
+      sortOrder
+    } = options;
+
+    // Build filter object
+    const filter: any = {};
+    
+    // Add state filter if provided and valid
+    if (state && Object.values(TransactionState).includes(state as TransactionState)) {
+      filter.state = state as TransactionState;
+    }
+
+    // Add currency filter if provided
+    if (currency && ['NGN', 'USD', 'GBP', 'EUR'].includes(currency)) {
+      filter.currency = currency;
+    }
+
+    // Add payment link filter if provided
+    if (paymentLinkId) {
+      filter.paymentLinkId = paymentLinkId;
+    }
+
+    // Build sort options
+    const sortOptions: any = {};
+    if (sortBy) {
+      // Default to descending order for timestamps, ascending for others
+      const defaultOrder = ['createdAt', 'updatedAt', 'paidAt'].includes(sortBy) ? 'desc' : 'asc';
+      sortOptions[sortBy] = sortOrder || defaultOrder;
+    } else {
+      // Default sort by creation date, newest first
+      sortOptions.createdAt = 'desc';
+    }
+
     const result = await this.transactionRepository.findWithFilter(
-      { paymentLinkId },
-      { page, limit }
+      filter,
+      { 
+        page, 
+        limit, 
+        sortBy: Object.keys(sortOptions)[0], 
+        sortOrder: Object.values(sortOptions)[0] as 'asc' | 'desc' 
+      }
+    );
+
+    const transactions = Array.isArray(result) ? result : result.documents || [];
+    const total = Array.isArray(result) ? result.length : result.pagination?.total || 0;
+
+    const transactionResponses = await Promise.all(
+      transactions.map(async (transaction: any) => {
+        const fullTransaction = await this.getTransaction(transaction.id);
+        return fullTransaction!;
+      })
+    );
+
+    return {
+      transactions: transactionResponses,
+      total,
+      page,
+      limit
+    };
+  }
+
+  /**
+   * Get transactions for a payment link
+   */
+  async getTransactionsByPaymentLink(
+    paymentLinkId: string, 
+    page: number = 1, 
+    limit: number = 20,
+    status?: string,
+    sortBy?: string,
+    sortOrder?: 'asc' | 'desc'
+  ): Promise<{
+    transactions: TransactionStatusResponse[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    // Build filter object
+    const filter: any = { paymentLinkId };
+    
+    // Add status filter if provided
+    if (status && Object.values(TransactionState).includes(status as TransactionState)) {
+      filter.state = status as TransactionState;
+    }
+
+    // Build sort options
+    const sortOptions: any = {};
+    if (sortBy) {
+      // Default to descending order for timestamps, ascending for others
+      const defaultOrder = ['createdAt', 'updatedAt', 'paidAt'].includes(sortBy) ? 'desc' : 'asc';
+      sortOptions[sortBy] = sortOrder || defaultOrder;
+    } else {
+      // Default sort by creation date, newest first
+      sortOptions.createdAt = 'desc';
+    }
+
+    const result = await this.transactionRepository.findWithFilter(
+      filter,
+      { page, limit, sortBy: Object.keys(sortOptions)[0], sortOrder: Object.values(sortOptions)[0] as 'asc' | 'desc' }
     );
 
     const transactions = Array.isArray(result) ? result : result.documents || [];
@@ -368,7 +478,7 @@ export class TransactionManager {
     transactionId: string, 
     request: RecordTransactionRequest
   ): Promise<RecordTransactionResponse> {
-    const { amount, currency, senderName, senderPhone, paidAt } = request;
+    const { amount, currency, senderName, senderPhone, senderEmail, paidAt } = request;
 
     // Find the transaction
     const transaction = await this.transactionRepository.findById(transactionId);
@@ -397,15 +507,25 @@ export class TransactionManager {
     }
 
     try {
-      // Update transaction with payment details
-      const updatedTransaction = await this.transactionRepository.updateById(transactionId, {
+      // Prepare update data
+      const updateData: any = {
         actualAmountPaid: amount,
         senderName: senderName,
         senderPhone: senderPhone,
         paidAt: paidDate,
         recordedAt: new Date(),
         state: TransactionState.PAID
-      });
+      };
+
+      // Update payerInfo with email if provided
+      if (senderEmail) {
+        updateData['payerInfo.email'] = senderEmail;
+        updateData['payerInfo.name'] = senderName;
+        updateData['payerInfo.phone'] = senderPhone;
+      }
+
+      // Update transaction with payment details
+      const updatedTransaction = await this.transactionRepository.updateById(transactionId, updateData);
 
       if (!updatedTransaction) {
         throw new Error('Failed to update transaction');
@@ -420,6 +540,7 @@ export class TransactionManager {
           actualAmountPaid: amount,
           senderName: senderName,
           senderPhone: senderPhone,
+          senderEmail: senderEmail,
           paidAt: paidDate,
           recordedAt: new Date(),
           previousState: transaction.state,
@@ -440,6 +561,7 @@ export class TransactionManager {
           actualAmountPaid: amount,
           senderName: senderName,
           senderPhone: senderPhone,
+          senderEmail: senderEmail,
           recordedAt: new Date()
         }
       });
@@ -476,7 +598,8 @@ export class TransactionManager {
         changes: {
           error: error instanceof Error ? error.message : 'Unknown error',
           attemptedAmount: amount,
-          attemptedSender: senderName
+          attemptedSender: senderName,
+          attemptedEmail: senderEmail
         }
       });
 

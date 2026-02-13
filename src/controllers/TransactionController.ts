@@ -305,6 +305,53 @@ export class TransactionController {
   };
 
   /**
+   * Get transactions by state with optional filtering
+   * GET /transactions
+   */
+  getTransactionsByState = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
+      
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100); // Max 100 per page
+      const state = req.query.state as string;
+      const currency = req.query.currency as string;
+      const paymentLinkId = req.query.paymentLinkId as string;
+      const sortBy = req.query.sortBy as string;
+      const sortOrder = req.query.sortOrder as 'asc' | 'desc';
+
+      const result = await this.transactionManager.getTransactionsByFilter({
+        state,
+        currency,
+        paymentLinkId,
+        page,
+        limit,
+        sortBy,
+        sortOrder
+      });
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Transactions retrieved successfully',
+        timestamp: new Date(),
+        correlationId
+      });
+
+    } catch (error) {
+      const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
+      
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        message: 'Failed to retrieve transactions',
+        timestamp: new Date(),
+        correlationId
+      });
+    }
+  };
+
+  /**
    * Get transactions for a payment link
    * GET /payment-links/:linkId/transactions
    */
@@ -323,11 +370,17 @@ export class TransactionController {
 
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 100); // Max 100 per page
+      const status = req.query.status as string;
+      const sortBy = req.query.sortBy as string;
+      const sortOrder = req.query.sortOrder as 'asc' | 'desc';
 
       const result = await this.transactionManager.getTransactionsByPaymentLink(
         paymentLinkId,
         page,
-        limit
+        limit,
+        status,
+        sortBy,
+        sortOrder
       );
 
       res.json({

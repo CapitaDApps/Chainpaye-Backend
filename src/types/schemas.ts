@@ -140,6 +140,11 @@ export const RecordTransactionSchema: ValidationSchema<RecordTransactionRequest>
     minLength: 1,
     maxLength: 20,
   },
+  senderEmail: {
+    type: 'string',
+    required: false,
+    pattern: ValidationPatterns.email,
+  },
   paidAt: {
     type: 'string',
     required: true,

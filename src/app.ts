@@ -15,8 +15,10 @@ const app: Application = express();
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || '*', // Allow all origins in development, specify in production
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id', 'X-Requested-With'],
-  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id','admin',        // Add this
+    'adminpwd' , 'X-Requested-With'],
+  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset','admin',        // Add this
+    'adminpwd' ],
   credentials: true,
   maxAge: 86400 // 24 hours
 };
