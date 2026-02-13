@@ -28,7 +28,7 @@ export async function checkToronetAPI(transaction: any): Promise<boolean> {
     });
 
     // Log the API response for debugging
-    console.log(`🔗 Toronet API response for ${transaction.reference}:`, JSON.stringify(response.data, null, 2));
+    console.log(`🔗 Toronet API i response for ${transaction.metadata?.toronetReference}:`, JSON.stringify(response.data, null, 2));
 
     // Check for success indicators
     const result = response.data;

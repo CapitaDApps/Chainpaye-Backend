@@ -669,4 +669,60 @@ export class PaymentLinkController {
       });
     }
   };
+
+  /**
+   * Get successful transactions for a merchant (payment link owner)
+   * GET /payment-links/merchant/:merchantId/successful-transactions
+   */
+  getSuccessfulTransactionsByMerchant = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
+      const merchantId = Array.isArray(req.params.merchantId) ? req.params.merchantId[0] : req.params.merchantId;
+
+      if (!merchantId) {
+        res.status(400).json({
+          success: false,
+          error: 'Merchant ID is required',
+          message: 'Merchant ID parameter is missing',
+          timestamp: new Date(),
+          correlationId
+        });
+        return;
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100); // Max 100 per page
+      const sortBy = req.query.sortBy as string;
+      const sortOrder = req.query.sortOrder as 'asc' | 'desc';
+
+      const result = await this.transactionManager.getSuccessfulTransactionsByMerchant(
+        merchantId,
+        page,
+        limit,
+        sortBy,
+        sortOrder
+      );
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Successful transactions retrieved successfully',
+        timestamp: new Date(),
+        correlationId
+      });
+
+    } catch (error: any) {
+      const correlationId = req.headers['x-correlation-id'] as string || randomUUID();
+      
+      console.error('Error getting successful transactions by merchant:', error);
+      
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        message: 'Failed to retrieve successful transactions',
+        timestamp: new Date(),
+        correlationId
+      });
+    }
+  };
 }

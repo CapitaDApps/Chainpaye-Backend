@@ -370,7 +370,7 @@ export class TransactionController {
 
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 100); // Max 100 per page
-      const status = req.query.status as string;
+      const state = req.query.state as string;
       const sortBy = req.query.sortBy as string;
       const sortOrder = req.query.sortOrder as 'asc' | 'desc';
 
@@ -378,7 +378,7 @@ export class TransactionController {
         paymentLinkId,
         page,
         limit,
-        status,
+        state,
         sortBy,
         sortOrder
       );

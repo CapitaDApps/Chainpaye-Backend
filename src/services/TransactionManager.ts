@@ -401,7 +401,7 @@ export class TransactionManager {
     paymentLinkId: string, 
     page: number = 1, 
     limit: number = 20,
-    status?: string,
+    state?: string,
     sortBy?: string,
     sortOrder?: 'asc' | 'desc'
   ): Promise<{
@@ -413,9 +413,9 @@ export class TransactionManager {
     // Build filter object
     const filter: any = { paymentLinkId };
     
-    // Add status filter if provided
-    if (status && Object.values(TransactionState).includes(status as TransactionState)) {
-      filter.state = status as TransactionState;
+    // Add state filter if provided
+    if (state && Object.values(TransactionState).includes(state as TransactionState)) {
+      filter.state = state as TransactionState;
     }
 
     // Build sort options
@@ -459,6 +459,85 @@ export class TransactionManager {
     const timestamp = Date.now().toString(36);
     const randomId = randomUUID().replace(/-/g, '').substring(0, 8);
     return `TXN_${timestamp}_${randomId}`.toUpperCase();
+  }
+
+  /**
+   * Get successful transactions for a merchant (payment link owner)
+   */
+  async getSuccessfulTransactionsByMerchant(
+    merchantId: string,
+    page: number = 1,
+    limit: number = 20,
+    sortBy?: string,
+    sortOrder?: 'asc' | 'desc'
+  ): Promise<{
+    transactions: TransactionStatusResponse[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    // First, get all payment links for this merchant
+    const paymentLinks = await this.paymentLinkRepository.findWithFilter(
+      { merchantId },
+      { page: 1, limit: 1000 } // Get all payment links for this merchant
+    );
+
+    const paymentLinkIds = Array.isArray(paymentLinks) 
+      ? paymentLinks.map((link: any) => link.id)
+      : paymentLinks.documents?.map((link: any) => link.id) || [];
+
+    if (paymentLinkIds.length === 0) {
+      return {
+        transactions: [],
+        total: 0,
+        page,
+        limit
+      };
+    }
+
+    // Build filter for successful transactions (PAID and COMPLETED states)
+    const filter: any = {
+      paymentLinkId: { $in: paymentLinkIds },
+      state: { $in: [TransactionState.PAID, TransactionState.COMPLETED] }
+    };
+
+    // Build sort options
+    const sortOptions: any = {};
+    if (sortBy) {
+      // Default to descending order for timestamps, ascending for others
+      const defaultOrder = ['createdAt', 'updatedAt', 'paidAt', 'recordedAt'].includes(sortBy) ? 'desc' : 'asc';
+      sortOptions[sortBy] = sortOrder || defaultOrder;
+    } else {
+      // Default sort by paidAt date, newest first
+      sortOptions.paidAt = 'desc';
+    }
+
+    const result = await this.transactionRepository.findWithFilter(
+      filter,
+      { 
+        page, 
+        limit, 
+        sortBy: Object.keys(sortOptions)[0], 
+        sortOrder: Object.values(sortOptions)[0] as 'asc' | 'desc' 
+      }
+    );
+
+    const transactions = Array.isArray(result) ? result : result.documents || [];
+    const total = Array.isArray(result) ? result.length : result.pagination?.total || 0;
+
+    const transactionResponses = await Promise.all(
+      transactions.map(async (transaction: any) => {
+        const fullTransaction = await this.getTransaction(transaction.id);
+        return fullTransaction!;
+      })
+    );
+
+    return {
+      transactions: transactionResponses,
+      total,
+      page,
+      limit
+    };
   }
 
   /**

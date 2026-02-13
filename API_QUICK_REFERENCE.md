@@ -23,7 +23,12 @@ https://your-api-domain.com/api/v1
 GET /transactions?state=COMPLETED&currency=USD&page=1&limit=10
 ```
 
-### 2. Create Payment Link
+### 2. Get Merchant's Successful Transactions
+```bash
+GET /payment-links/merchant/merchant-123/successful-transactions?page=1&limit=10&sortBy=paidAt&sortOrder=desc
+```
+
+### 3. Create Payment Link
 ```bash
 POST /payment-links
 {
@@ -39,7 +44,7 @@ POST /payment-links
 }
 ```
 
-### 3. Access Payment Link
+### 4. Access Payment Link
 ```bash
 POST /payment-links/{id}/access
 {
@@ -50,7 +55,7 @@ POST /payment-links/{id}/access
 }
 ```
 
-### 4. Start Immediate Verification
+### 5. Start Immediate Verification
 ```bash
 POST /transactions/{id}/verify
 Headers: admin, adminpwd
@@ -66,13 +71,13 @@ Headers: admin, adminpwd
 }
 ```
 
-### 5. Check Transaction Status
+### 6. Check Transaction Status
 ```bash
 GET /transactions/{id}/status
 Headers: admin, adminpwd
 ```
 
-### 6. Record Transaction
+### 7. Record Transaction
 ```bash
 POST /record-transaction/{transactionId}
 {
@@ -102,6 +107,7 @@ POST /record-transaction/{transactionId}
 | POST | `/payment-links/:id/access` | Access payment link |
 | POST | `/payment-links/:id` | Access payment link (alt) |
 | GET | `/payment-links/:id/transactions` | Get link transactions |
+| GET | `/payment-links/merchant/:merchantId/successful-transactions` | Get merchant's successful transactions |
 | **Transactions** |
 | GET | `/transactions` | Get all transactions |
 | POST | `/transactions` | Create transaction |

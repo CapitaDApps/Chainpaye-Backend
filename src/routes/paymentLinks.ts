@@ -90,6 +90,50 @@ const merchantIdQuerySchema = {
   }
 };
 
+const merchantIdParamSchema = {
+  merchantId: {
+    type: 'string' as const,
+    required: true,
+    minLength: 1,
+    maxLength: 255
+  }
+};
+
+/**
+ * @route GET /payment-links/merchant/:merchantId/successful-transactions
+ * @desc Get all successful transactions for a merchant (payment link owner)
+ * @access Public (should be protected in production)
+ */
+router.get(
+  '/merchant/:merchantId/successful-transactions',
+  readOnlyRateLimit,
+  validateRequest({ 
+    params: merchantIdParamSchema,
+    query: {
+      page: {
+        type: 'string' as const,
+        required: false
+      },
+      limit: {
+        type: 'string' as const,
+        required: false
+      },
+      sortBy: {
+        type: 'string' as const,
+        required: false,
+        maxLength: 50
+      },
+      sortOrder: {
+        type: 'string' as const,
+        required: false,
+        enum: ['asc', 'desc']
+      }
+    }
+  }),
+  validatePagination(),
+  asyncHandler(paymentLinkController.getSuccessfulTransactionsByMerchant.bind(paymentLinkController))
+);
+
 /**
  * @route POST /payment-links
  * @desc Create a new payment link
@@ -183,7 +227,7 @@ router.get(
   validateRequest({ 
     params: { linkId: idParamSchema.id },
     query: {
-      status: {
+      state: {
         type: 'string' as const,
         required: false,
         enum: ['PENDING', 'INITIALIZED', 'PAID', 'COMPLETED', 'PAYOUT_FAILED']

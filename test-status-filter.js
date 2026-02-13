@@ -1,11 +1,11 @@
 /**
- * Test script for the new status query parameter in GET /payment-links/:linkId/transactions
+ * Test script for the new state query parameter in GET /payment-links/:linkId/transactions
  */
 
 const BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000/api/v1';
 
-async function testStatusFilter() {
-  console.log('🧪 Testing status filter for payment link transactions...\n');
+async function testStateFilter() {
+  console.log('🧪 Testing state filter for payment link transactions...\n');
 
   // You'll need to replace this with an actual payment link ID from your database
   const testPaymentLinkId = 'your-payment-link-id-here';
@@ -16,24 +16,24 @@ async function testStatusFilter() {
       url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions`
     },
     {
-      name: 'Filter by PENDING status',
-      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?status=PENDING`
+      name: 'Filter by PENDING state',
+      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?state=PENDING`
     },
     {
-      name: 'Filter by COMPLETED status',
-      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?status=COMPLETED`
+      name: 'Filter by COMPLETED state',
+      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?state=COMPLETED`
     },
     {
-      name: 'Filter by PAID status with pagination',
-      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?status=PAID&page=1&limit=5`
+      name: 'Filter by PAID state with pagination',
+      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?state=PAID&page=1&limit=5`
     },
     {
-      name: 'Filter by INITIALIZED status with sorting',
-      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?status=INITIALIZED&sortBy=createdAt&sortOrder=desc`
+      name: 'Filter by INITIALIZED state with sorting',
+      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?state=INITIALIZED&sortBy=createdAt&sortOrder=desc`
     },
     {
-      name: 'Invalid status (should return validation error)',
-      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?status=INVALID_STATUS`
+      name: 'Invalid state (should return validation error)',
+      url: `${BASE_URL}/payment-links/${testPaymentLinkId}/transactions?state=INVALID_STATE`
     }
   ];
 
@@ -66,7 +66,7 @@ async function testStatusFilter() {
 
 // Run the test if this script is executed directly
 if (require.main === module) {
-  testStatusFilter().catch(console.error);
+  testStateFilter().catch(console.error);
 }
 
-module.exports = { testStatusFilter };
+module.exports = { testStateFilter };

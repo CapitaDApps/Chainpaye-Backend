@@ -438,6 +438,75 @@ Alternative endpoint for payment link access (same as `/access`).
 
 **Request/Response:** Same as `POST /payment-links/:id/access`
 
+### GET /payment-links/merchant/:merchantId/successful-transactions
+Get all successful transactions for a merchant (payment link owner).
+
+**Parameters:**
+- `merchantId` (path): Merchant ID
+
+**Query Parameters:**
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20, max: 100)
+- `sortBy` (optional): Field to sort by (default: paidAt)
+- `sortOrder` (optional): `asc` or `desc` (default: desc)
+
+**Example Requests:**
+```
+GET /payment-links/merchant/merchant-123/successful-transactions
+GET /payment-links/merchant/merchant-123/successful-transactions?page=1&limit=10
+GET /payment-links/merchant/merchant-123/successful-transactions?sortBy=recordedAt&sortOrder=desc
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "transactions": [
+      {
+        "id": "trans_789012",
+        "paymentLinkId": "507f1f77bcf86cd799439011",
+        "reference": "TXN_REF_123",
+        "state": "COMPLETED",
+        "amount": "250.00",
+        "currency": "USD",
+        "actualAmountPaid": "250.00",
+        "senderName": "John Doe",
+        "senderPhone": "+1234567890",
+        "payerInfo": {
+          "email": "john.doe@example.com",
+          "name": "John Doe",
+          "phone": "+1234567890"
+        },
+        "toronetReference": "toro_ref_123456",
+        "paidAt": "2026-02-04T09:35:00.000Z",
+        "recordedAt": "2026-02-04T09:36:00.000Z",
+        "createdAt": "2026-02-04T09:30:00.000Z",
+        "updatedAt": "2026-02-04T09:36:00.000Z",
+        "paymentInitialization": {
+          "id": "init_345678",
+          "toronetReference": "toro_ref_123456",
+          "status": "SUCCESS",
+          "createdAt": "2026-02-04T09:31:00.000Z"
+        }
+      }
+    ],
+    "total": 15,
+    "page": 1,
+    "limit": 20
+  },
+  "message": "Successful transactions retrieved successfully",
+  "timestamp": "2026-02-04T10:00:00.000Z",
+  "correlationId": "success123-def456"
+}
+```
+
+**Notes:**
+- Returns only transactions in `PAID` and `COMPLETED` states
+- Includes full transaction details with payment information
+- Sorted by payment date (newest first) by default
+- Includes payer information and payment initialization details
+
 ### GET /payment-links/:linkId/transactions
 Get transactions for a specific payment link.
 
@@ -445,7 +514,7 @@ Get transactions for a specific payment link.
 - `linkId` (path): Payment link ID
 
 **Query Parameters:**
-- `status` (optional): Filter by transaction state (`PENDING`, `INITIALIZED`, `PAID`, `COMPLETED`, `PAYOUT_FAILED`)
+- `state` (optional): Filter by transaction state (`PENDING`, `INITIALIZED`, `PAID`, `COMPLETED`, `PAYOUT_FAILED`)
 - `page` (optional): Page number (default: 1)
 - `limit` (optional): Items per page (default: 10, max: 100)
 - `sortBy` (optional): Field to sort by
@@ -454,8 +523,8 @@ Get transactions for a specific payment link.
 **Example Requests:**
 ```
 GET /payment-links/507f1f77bcf86cd799439011/transactions
-GET /payment-links/507f1f77bcf86cd799439011/transactions?status=COMPLETED
-GET /payment-links/507f1f77bcf86cd799439011/transactions?status=PENDING&page=1&limit=5
+GET /payment-links/507f1f77bcf86cd799439011/transactions?state=COMPLETED
+GET /payment-links/507f1f77bcf86cd799439011/transactions?state=PENDING&page=1&limit=5
 GET /payment-links/507f1f77bcf86cd799439011/transactions?sortBy=paidAt&sortOrder=desc
 ```
 
