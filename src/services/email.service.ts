@@ -4,17 +4,47 @@ import { IPaymentLink } from '../models/PaymentLink';
 
 export class EmailService {
   private transporter: nodemailer.Transporter;
+  private isConfigured: boolean = false;
 
   constructor() {
+    console.log('🔧 EmailService constructor called at:', new Date().toISOString());
+    
+    // Debug: Log environment variables (without exposing password)
+    console.log('🔧 Email Service Debug:');
+    console.log(`SMTP_HOST: ${process.env.SMTP_HOST}`);
+    console.log(`SMTP_PORT: ${process.env.SMTP_PORT}`);
+    console.log(`SMTP_USER: ${process.env.SMTP_USER}`);
+    console.log(`SMTP_PASS: ${process.env.SMTP_PASS ? '[SET]' : '[NOT SET]'}`);
+    console.log(`SMTP_FROM: ${process.env.SMTP_FROM}`);
+
+    // Check if SMTP credentials are available
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+
+    if (!smtpUser || !smtpPass) {
+      console.warn('⚠️ SMTP credentials not found. Email service will be disabled.');
+      // Create a dummy transporter that won't try to authenticate
+      this.transporter = nodemailer.createTransport({
+        streamTransport: true,
+        newline: 'unix',
+        buffer: true
+      });
+      this.isConfigured = false;
+      return;
+    }
+
+    console.log('✅ SMTP credentials found, creating transporter...');
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
+    this.isConfigured = true;
+    console.log('✅ EmailService configured successfully');
   }
 
   /**
@@ -23,6 +53,12 @@ export class EmailService {
   async sendConfirmationEmail(transaction: ITransaction, paymentLink: IPaymentLink): Promise<void> {
     if (!transaction.payerInfo?.email) {
       console.log(`No email found for transaction ${transaction.id}, skipping confirmation email`);
+      return;
+    }
+
+    // Check if SMTP is properly configured
+    if (!this.isConfigured) {
+      console.warn(`⚠️ SMTP not configured, skipping confirmation email for transaction ${transaction.id}`);
       return;
     }
 
@@ -37,10 +73,10 @@ export class EmailService {
         html,
       });
 
-      console.log(`Confirmation email sent successfully to ${transaction.payerInfo.email} for transaction ${transaction.id}`);
+      console.log(`✅ Confirmation email sent successfully to ${transaction.payerInfo.email} for transaction ${transaction.id}`);
     } catch (error) {
-      console.error(`Failed to send confirmation email for transaction ${transaction.id}:`, error);
-      throw error;
+      console.error(`❌ Failed to send confirmation email for transaction ${transaction.id}:`, error);
+      // Don't throw error to prevent breaking the transaction flow
     }
   }
 
@@ -50,6 +86,12 @@ export class EmailService {
   async sendExpirationEmail(transaction: ITransaction): Promise<void> {
     if (!transaction.payerInfo?.email) {
       console.log(`No email found for transaction ${transaction.id}, skipping expiration email`);
+      return;
+    }
+
+    // Check if SMTP is properly configured
+    if (!this.isConfigured) {
+      console.warn(`⚠️ SMTP not configured, skipping expiration email for transaction ${transaction.id}`);
       return;
     }
 
@@ -64,10 +106,10 @@ export class EmailService {
         html,
       });
 
-      console.log(`Expiration email sent successfully to ${transaction.payerInfo.email} for transaction ${transaction.id}`);
+      console.log(`✅ Expiration email sent successfully to ${transaction.payerInfo.email} for transaction ${transaction.id}`);
     } catch (error) {
-      console.error(`Failed to send expiration email for transaction ${transaction.id}:`, error);
-      throw error;
+      console.error(`❌ Failed to send expiration email for transaction ${transaction.id}:`, error);
+      // Don't throw error to prevent breaking the transaction flow
     }
   }
 
@@ -229,12 +271,17 @@ export class EmailService {
    * Test email configuration
    */
   async testConnection(): Promise<boolean> {
+    if (!this.isConfigured) {
+      console.log('📧 Email service not configured - skipping connection test');
+      return false;
+    }
+
     try {
       await this.transporter.verify();
-      console.log('Email service connection verified successfully');
+      console.log('✅ Email service connection verified successfully');
       return true;
     } catch (error) {
-      console.error('Email service connection failed:', error);
+      console.error('❌ Email service connection failed:', error);
       return false;
     }
   }

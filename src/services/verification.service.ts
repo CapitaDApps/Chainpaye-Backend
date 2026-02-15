@@ -4,8 +4,18 @@ import EmailService from './email.service';
 import { AuditService } from './AuditService';
 import axios from 'axios';
 
-const emailService = new EmailService();
+let emailService: EmailService | null = null;
 const auditService = new AuditService();
+
+/**
+ * Get or create EmailService instance
+ */
+function getEmailService(): EmailService {
+  if (!emailService) {
+    emailService = new EmailService();
+  }
+  return emailService;
+}
 
 /**
  * Check Toronet API for payment confirmation
@@ -88,7 +98,7 @@ export async function handleConfirmedTransaction(transaction: any): Promise<void
     await auditService.createAuditLog({
       entityType: 'Transaction',
       entityId: updatedTransaction.id,
-      action: 'PAYMENT_CONFIRMED',
+      action: 'PAYMENT_CONFIRM',
       changes: {
         previousState: TransactionState.PENDING,
         newState: TransactionState.PAID,
@@ -110,7 +120,7 @@ export async function handleConfirmedTransaction(transaction: any): Promise<void
     if (updatedTransaction.payerInfo?.email) {
       try {
         if (paymentLink) {
-          await emailService.sendConfirmationEmail(updatedTransaction, paymentLink);
+          await getEmailService().sendConfirmationEmail(updatedTransaction, paymentLink);
         } else {
           // Create a minimal payment link object for email if not found
           const minimalPaymentLink = {
@@ -118,7 +128,7 @@ export async function handleConfirmedTransaction(transaction: any): Promise<void
             name: 'Payment Link',
             merchantId: 'unknown'
           } as any;
-          await emailService.sendConfirmationEmail(updatedTransaction, minimalPaymentLink);
+          await getEmailService().sendConfirmationEmail(updatedTransaction, minimalPaymentLink);
         }
         console.log(`📧 Confirmation email sent to ${updatedTransaction.payerInfo.email}`);
       } catch (error) {
@@ -130,6 +140,13 @@ export async function handleConfirmedTransaction(transaction: any): Promise<void
     // Call webhook to successUrl
     if (updatedTransaction.metadata?.successUrl) {
       try {
+        // Validate the webhook URL
+        const webhookUrl = updatedTransaction.metadata.successUrl;
+        if (!webhookUrl.startsWith('http://') && !webhookUrl.startsWith('https://')) {
+          console.warn(`⚠️ Invalid webhook URL format: ${webhookUrl}`);
+          return;
+        }
+
         const webhookData = {
           event: 'payment.confirmed',
           paymentLinkId: updatedTransaction.metadata.paymentLinkId,
@@ -145,39 +162,64 @@ export async function handleConfirmedTransaction(transaction: any): Promise<void
           timestamp: new Date().toISOString()
         };
 
-        await axios.post(updatedTransaction.metadata.successUrl, webhookData, {
+        const response = await axios.post(webhookUrl, webhookData, {
           headers: {
             'Content-Type': 'application/json',
             'User-Agent': 'ChainPaye-Webhook/1.0'
           },
-          timeout: 8000
+          timeout: 8000,
+          validateStatus: (status) => status >= 200 && status < 300
         });
 
-        console.log(`📤 Webhook called successfully for ${transaction.reference}`);
+        console.log(`📤 Webhook called successfully for ${transaction.reference} (Status: ${response.status})`);
 
         // Log successful webhook
         await auditService.createAuditLog({
           entityType: 'Transaction',
           entityId: updatedTransaction.id,
-          action: 'WEBHOOK_SENT',
+          action: 'UPDATE',
           changes: {
-            webhookUrl: updatedTransaction.metadata.successUrl,
+            webhookUrl: webhookUrl,
+            webhookStatus: 'sent',
+            responseStatus: response.status,
             sentAt: new Date()
+          },
+          metadata: {
+            operation: 'webhook_sent',
+            webhookUrl: webhookUrl
           }
         });
 
       } catch (error) {
-        console.error(`❌ Webhook failed for ${transaction.reference}:`, error);
+        let errorMessage = 'Unknown error';
+        let statusCode = null;
         
-        // Log failed webhook
+        if (axios.isAxiosError(error)) {
+          statusCode = error.response?.status;
+          errorMessage = error.response?.status === 405 
+            ? 'Method Not Allowed - The webhook endpoint does not accept POST requests'
+            : error.message;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+
+        console.error(`❌ Webhook failed for ${transaction.reference} (Status: ${statusCode}): ${errorMessage}`);
+        
+        // Log failed webhook with more details
         await auditService.createAuditLog({
           entityType: 'Transaction',
           entityId: updatedTransaction.id,
-          action: 'WEBHOOK_FAILED',
+          action: 'UPDATE',
           changes: {
             webhookUrl: updatedTransaction.metadata.successUrl,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            webhookStatus: 'failed',
+            error: errorMessage,
+            statusCode: statusCode,
             failedAt: new Date()
+          },
+          metadata: {
+            operation: 'webhook_failed',
+            webhookUrl: updatedTransaction.metadata.successUrl
           }
         });
         
@@ -214,19 +256,22 @@ export async function handleExpiredTransactions(): Promise<void> {
         await auditService.createAuditLog({
           entityType: 'Transaction',
           entityId: transaction.id,
-          action: 'TRANSACTION_EXPIRED',
+          action: 'STATE_TRANSITION',
           changes: {
             previousState: TransactionState.PENDING,
             newState: TransactionState.PAYOUT_FAILED,
             expiredAt: new Date(),
             reason: '24-hour verification timeout'
+          },
+          metadata: {
+            operation: 'transaction_expired'
           }
         });
 
         // Send expiration email
         if (transaction.payerInfo?.email) {
           try {
-            await emailService.sendExpirationEmail(transaction);
+            await getEmailService().sendExpirationEmail(transaction);
             console.log(`📧 Expiration email sent to ${transaction.payerInfo.email}`);
           } catch (error) {
             console.error(`❌ Failed to send expiration email for ${transaction.reference}:`, error);
