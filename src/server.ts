@@ -1,7 +1,7 @@
 import app from "./app";
 import connectDB from "./config/database";
 import config from "./config";
-import { startVerificationCron, stopVerificationCron } from "./services/verify-pending-transactions";
+import { startEnhancedVerificationCron, stopEnhancedVerificationCron } from "./services/verify-pending-transactions";
 
 const startServer = async (): Promise<void> => {
   try {
@@ -16,10 +16,10 @@ const startServer = async (): Promise<void> => {
       console.log(`🌍 Environment: ${config.nodeEnv}`);
       console.log(`📊 Health check: http://localhost:${config.port}/api/v1/health`);
       
-      // Start background verification services
-      console.log('🔄 Starting background services...');
-      startVerificationCron();
-      console.log('✅ Background services started');
+      // Start enhanced background verification services
+      console.log('🔄 Starting Enhanced Background Verification System v2.0.0...');
+      startEnhancedVerificationCron();
+      console.log('✅ Enhanced background services started');
     });
     
     // Graceful shutdown
@@ -27,9 +27,9 @@ const startServer = async (): Promise<void> => {
       console.log(`\n📡 Received ${signal}. Starting graceful shutdown...`);
       
       // Stop background services first
-      console.log('🛑 Stopping background services...');
-      stopVerificationCron();
-      console.log('✅ Background services stopped');
+      console.log('🛑 Stopping enhanced background services...');
+      stopEnhancedVerificationCron();
+      console.log('✅ Enhanced background services stopped');
       
       server.close((err) => {
         if (err) {

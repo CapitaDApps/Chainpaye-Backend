@@ -19,15 +19,27 @@ function getEmailService(): EmailService {
 
 /**
  * Check Toronet API for payment confirmation
+ * Enhanced with better data handling for both immediate and background verification
  */
 export async function checkToronetAPI(transaction: any): Promise<boolean> {
   try {
+    // Handle different data structures between immediate and background verification
+    const toronetReference = transaction.metadata?.toronetReference || transaction.toronetReference;
+    const paymentType = transaction.metadata?.paymentType || 'bank'; // Default to bank
+    
+    if (!toronetReference) {
+      console.warn(`⚠️ No Toronet reference found for transaction ${transaction.reference}`);
+      return false;
+    }
+    
+    console.log(`🔗 Checking Toronet API for reference: ${toronetReference}`);
+    
     const response = await axios.post('https://www.toronet.org/api/payment/toro/', {
       op: 'recordfiattransaction',
       params: [
         { name: 'currency', value: transaction.currency },
-        { name: 'txid', value: transaction.metadata?.toronetReference },
-        { name: 'paymenttype', value: transaction.metadata?.paymentType || 'bank' },
+        { name: 'txid', value: toronetReference },
+        { name: 'paymenttype', value: paymentType },
       ],
     }, {
       headers: {
@@ -38,7 +50,7 @@ export async function checkToronetAPI(transaction: any): Promise<boolean> {
     });
 
     // Log the API response for debugging
-    console.log(`🔗 Toronet API i response for ${transaction.metadata?.toronetReference}:`, JSON.stringify(response.data, null, 2));
+    console.log(`🔗 Toronet API response for ${toronetReference}:`, JSON.stringify(response.data, null, 2));
 
     // Check for success indicators
     const result = response.data;

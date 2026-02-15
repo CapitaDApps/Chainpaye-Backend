@@ -92,10 +92,10 @@ All API responses follow this standard format:
 
 ---
 
-## Health Check
+## Health Check & Monitoring
 
 ### GET /health
-Check API health status.
+Basic API health check.
 
 **Response:**
 ```json
@@ -103,7 +103,129 @@ Check API health status.
   "success": true,
   "message": "Payment Link System API is running",
   "timestamp": "2026-02-04T10:00:00.000Z",
-  "version": "1.0.0"
+  "version": "2.0.0",
+  "uptime": 3600,
+  "memory": {
+    "used": 128,
+    "total": 256,
+    "rss": 180
+  }
+}
+```
+
+### GET /health/verification
+Enhanced verification service health check with detailed metrics.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "Enhanced Background Verification v2.0.0",
+  "isRunning": true,
+  "uptime": "2h 30m",
+  "lastRun": "2026-02-04T09:55:00.000Z",
+  "lastRunDuration": 1250,
+  "statistics": {
+    "totalRuns": 48,
+    "totalTransactionsProcessed": 156,
+    "totalErrors": 2,
+    "errorRate": "4.17%",
+    "successRate": "95.83%"
+  },
+  "performance": {
+    "memoryUsage": "145MB",
+    "avgProcessingTime": 26
+  },
+  "configuration": {
+    "batchSize": 100,
+    "cronInterval": "300s",
+    "apiDelay": "100ms",
+    "maxRetries": 3
+  },
+  "timestamp": "2026-02-04T10:00:00.000Z"
+}
+```
+
+### GET /health/database
+Database connectivity and performance check.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "database": "MongoDB",
+  "connectivity": "connected",
+  "queryTime": "45ms",
+  "statistics": {
+    "totalTransactions": 1250,
+    "pendingTransactions": 23,
+    "completedTransactions": 1227
+  },
+  "timestamp": "2026-02-04T10:00:00.000Z"
+}
+```
+
+### GET /health/system
+Comprehensive system health check with all components.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-02-04T10:00:00.000Z",
+  "uptime": "7200s",
+  "components": {
+    "verification": {
+      "status": "healthy",
+      "isRunning": true,
+      "lastRun": "2026-02-04T09:55:00.000Z",
+      "totalRuns": 48,
+      "errorRate": "4.17%"
+    },
+    "database": {
+      "status": "healthy",
+      "queryTime": "45ms",
+      "pendingTransactions": 23
+    },
+    "memory": {
+      "status": "healthy",
+      "heapUsed": "145MB",
+      "heapTotal": "256MB",
+      "rss": "180MB"
+    }
+  },
+  "environment": {
+    "nodeVersion": "v18.17.0",
+    "platform": "linux",
+    "pid": 12345,
+    "nodeEnv": "production"
+  }
+}
+```
+
+### GET /health/transactions
+Transaction statistics and metrics.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-02-04T10:00:00.000Z",
+  "totals": {
+    "all": 1250,
+    "pending": 23,
+    "completed": 1200,
+    "expired": 27
+  },
+  "recent": {
+    "last24Hours": 45,
+    "lastHour": 3
+  },
+  "percentages": {
+    "completionRate": "96.00%",
+    "pendingRate": "1.84%",
+    "expirationRate": "2.16%"
+  }
 }
 ```
 

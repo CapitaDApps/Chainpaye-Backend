@@ -2,6 +2,7 @@ import { Router } from 'express';
 import paymentLinksRouter from './paymentLinks';
 import transactionsRouter from './transactions';
 import chainpayeRouter from './chainpaye';
+import healthRouter from './health';
 import { TransactionController } from '../controllers/TransactionController';
 import { TransactionManager } from '../services/TransactionManager';
 import { StateManager } from '../services/StateManager';
@@ -34,13 +35,16 @@ const transactionManager = new TransactionManager(
 );
 const transactionController = new TransactionController(transactionManager, stateManager);
 
-// Health check endpoint with specific rate limiting
-router.get('/health', healthCheckRateLimit, (req, res) => {
+// Health check endpoints
+router.use('/health', healthRouter);
+
+// Legacy health check endpoint (for backward compatibility)
+router.get('/health-legacy', healthCheckRateLimit, (req, res) => {
   res.json({
     success: true,
     message: 'Payment Link System API is running',
     timestamp: new Date(),
-    version: '1.0.0'
+    version: '2.0.0'
   });
 });
 

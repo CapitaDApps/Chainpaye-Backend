@@ -37,6 +37,10 @@ export interface ITransaction extends Document {
   verificationStartedAt?: Date;     // When verification process started
   expiresAt?: Date;                 // When transaction expires (24 hours from creation)
   
+  // Processing lock fields (prevent race conditions)
+  processingBy?: string;            // Process ID or service name currently processing
+  processingStartedAt?: Date;       // When processing lock was acquired
+  
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -167,6 +171,15 @@ const TransactionSchema: Schema = new Schema(
         return new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from creation
       }
     },
+    processingBy: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    processingStartedAt: {
+      type: Date,
+      index: true,
+    },
     metadata: {
       type: Schema.Types.Mixed,
       default: {}
@@ -183,6 +196,22 @@ TransactionSchema.index({ paymentLinkId: 1, createdAt: -1 });
 TransactionSchema.index({ state: 1, createdAt: 1 });
 TransactionSchema.index({ toronetReference: 1 }, { sparse: true });
 TransactionSchema.index({ reference: 1 }, { unique: true });
+
+// Enhanced indexes for background verification performance
+TransactionSchema.index({ 
+  state: 1, 
+  verificationStartedAt: 1, 
+  expiresAt: 1 
+}); // Primary query for background verification
+TransactionSchema.index({ 
+  state: 1, 
+  lastVerificationCheck: 1, 
+  expiresAt: 1 
+}); // Secondary query optimization
+TransactionSchema.index({ 
+  processingBy: 1, 
+  processingStartedAt: 1 
+}, { sparse: true }); // Processing lock queries
 
 // Ensure reference uniqueness
 TransactionSchema.index({ reference: 1 }, { unique: true });
