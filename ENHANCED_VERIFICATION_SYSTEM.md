@@ -72,7 +72,7 @@ graph TD
 
 ```env
 # Toronet API Configuration
-TORONET_ADMIN=0x6b03eea493cfeab887f40969e40b069bb334f632
+TORONET_ADMIN=your_admin_address
 TORONET_ADMIN_PWD=your_admin_password
 
 # Database Configuration

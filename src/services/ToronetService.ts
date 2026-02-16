@@ -39,8 +39,17 @@ export class ToronetService {
 
   constructor(auditService: AuditService) {
     this.apiUrl = process.env.TORONET_API_URL || 'https://api.toronet.org';
-    this.adminPwd = process.env.TORONET_ADMIN_PASSWORD || 'Holland234$';
-    this.admin = process.env.TORONET_ADMIN_ADDRESS || '0xbdb182ac6b38fd8f4581ab21d29a50287d47a93c';
+    
+    // Require admin credentials from environment variables
+    if (!process.env.TORONET_ADMIN_PASSWORD) {
+      throw new Error('TORONET_ADMIN_PASSWORD environment variable is required');
+    }
+    if (!process.env.TORONET_ADMIN_ADDRESS) {
+      throw new Error('TORONET_ADMIN_ADDRESS environment variable is required');
+    }
+    
+    this.adminPwd = process.env.TORONET_ADMIN_PASSWORD;
+    this.admin = process.env.TORONET_ADMIN_ADDRESS;
     this.auditService = auditService;
   }
 

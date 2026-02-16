@@ -20,9 +20,6 @@ export interface Config {
   encryptionKeyV1: string;
   encryptionKeyV2: string;
   
-  // External API configuration
-  crossmintApiKey: string;
-  
   // Application configuration
   requestTimeout: number;
   maxRetries: number;
@@ -46,9 +43,6 @@ const config: Config = {
   // Security configuration
   encryptionKeyV1: process.env.ENCRYPTION_KEY_V1 || 'default-key-change-in-production',
   encryptionKeyV2: process.env.ENCRYPTION_KEY_V2 || 'v2-default-key-change-in-production',
-  
-  // External API configuration
-  crossmintApiKey: process.env.CROSSMINT_API_KEY || '',
   
   // Application configuration
   requestTimeout: parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10),

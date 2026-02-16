@@ -91,8 +91,8 @@ expiresAt: {
 
 **Headers**:
 ```
-admin: 0x6b03eea493cfeab887f40969e40b069bb334f632
-adminpwd: Holland234$
+admin: your_admin_address
+adminpwd: your_admin_password
 ```
 
 **Request Body**:
@@ -186,8 +186,8 @@ PAID → COMPLETED (or PAYOUT_FAILED after 24 hours)
 
 **Headers**:
 ```
-admin: 0x6b03eea493cfeab887f40969e40b069bb334f632
-adminpwd: Holland234$
+admin: your_admin_address
+adminpwd: your_admin_password
 ```
 
 ## Email Notifications
@@ -260,8 +260,8 @@ User-Agent: ChainPaye-Webhook/1.0
 
 ```env
 # Existing Toronet Configuration
-TORONET_ADMIN=0x6b03eea493cfeab887f40969e40b069bb334f632
-TORONET_ADMIN_PWD=Holland234$
+TORONET_ADMIN=your_admin_address
+TORONET_ADMIN_PWD=your_admin_password
 
 # Nodemailer SMTP Configuration
 SMTP_HOST=smtp.gmail.com

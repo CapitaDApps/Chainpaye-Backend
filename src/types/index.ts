@@ -7,6 +7,3 @@ export * from './payout';
 export * from './audit';
 export * from './validation';
 export * from './schemas';
-
-// Re-export crossmint types if they exist
-export * from './crossmint';

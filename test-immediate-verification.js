@@ -8,8 +8,8 @@ const BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000/api/v1';
 
 // Admin credentials for verification endpoint
 const ADMIN_CREDENTIALS = {
-  admin: process.env.TORONET_ADMIN || '0x6b03eea493cfeab887f40969e40b069bb334f632',
-  adminpwd: process.env.TORONET_ADMIN_PWD || 'Holland234$'
+  admin: process.env.TORONET_ADMIN || '',
+  adminpwd: process.env.TORONET_ADMIN_PWD || ''
 };
 
 async function testImmediateVerification() {

@@ -105,12 +105,12 @@ Attempt 4: Wait 4 seconds (max 3 attempts)
 ### Environment Variables (No Changes Required)
 ```env
 # Existing variables work as-is
-TORONET_ADMIN=0x6b03eea493cfeab887f40969e40b069bb334f632
-TORONET_ADMIN_PWD=Holland234$
-MONGODB_URI=mongodb+srv://...
+TORONET_ADMIN=your_admin_address
+TORONET_ADMIN_PWD=your_admin_password
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
 SMTP_HOST=smtp.gmail.com
-SMTP_USER=pauljoseph5000@gmail.com
-SMTP_PASS=qupiokvlsfnndsdl
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 ```
 
 ### Service Configuration (Built-in)
