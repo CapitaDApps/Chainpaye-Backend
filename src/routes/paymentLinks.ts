@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { PaymentLinkController } from '../controllers/PaymentLinkController';
 import { TransactionController } from '../controllers/TransactionController';
 import { validateRequest, validatePagination } from '../middleware/validation';
@@ -24,34 +24,43 @@ import {
 
 const router = Router();
 
-// Initialize repositories
-const auditLogRepository = new AuditLogRepository();
-const transactionRepository = new TransactionRepository();
-const paymentLinkRepository = new PaymentLinkRepository();
-const paymentInitializationRepository = new PaymentInitializationRepository();
+// Lazy initialization to ensure environment variables are loaded
+let paymentLinkController: PaymentLinkController;
+let transactionController: TransactionController;
 
-// Initialize services
-const auditService = new AuditService();
-const paymentLinkManager = new PaymentLinkManager(paymentLinkRepository, auditService);
-const toronetService = new ToronetService(auditService);
-const stateManager = new StateManager(transactionRepository, auditService);
-const transactionManager = new TransactionManager(
-  transactionRepository,
-  paymentLinkRepository,
-  paymentInitializationRepository,
-  stateManager,
-  auditService
-);
+const initializeControllers = () => {
+  if (!paymentLinkController) {
+    // Initialize repositories
+    const auditLogRepository = new AuditLogRepository();
+    const transactionRepository = new TransactionRepository();
+    const paymentLinkRepository = new PaymentLinkRepository();
+    const paymentInitializationRepository = new PaymentInitializationRepository();
 
-// Initialize controllers
-const paymentLinkController = new PaymentLinkController(
-  paymentLinkManager,
-  auditService,
-  toronetService,
-  transactionManager,
-  paymentInitializationRepository
-);
-const transactionController = new TransactionController(transactionManager, stateManager);
+    // Initialize services
+    const auditService = new AuditService();
+    const paymentLinkManager = new PaymentLinkManager(paymentLinkRepository, auditService);
+    const toronetService = new ToronetService(auditService);
+    const stateManager = new StateManager(transactionRepository, auditService);
+    const transactionManager = new TransactionManager(
+      transactionRepository,
+      paymentLinkRepository,
+      paymentInitializationRepository,
+      stateManager,
+      auditService
+    );
+
+    // Initialize controllers
+    paymentLinkController = new PaymentLinkController(
+      paymentLinkManager,
+      auditService,
+      toronetService,
+      transactionManager,
+      paymentInitializationRepository
+    );
+    transactionController = new TransactionController(transactionManager, stateManager);
+  }
+  return { paymentLinkController, transactionController };
+};
 
 // Parameter validation schemas
 const idParamSchema = {
@@ -131,7 +140,10 @@ router.get(
     }
   }),
   validatePagination(),
-  asyncHandler(paymentLinkController.getSuccessfulTransactionsByMerchant.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.getSuccessfulTransactionsByMerchant(req, res);
+  })
 );
 
 /**
@@ -145,7 +157,10 @@ router.post(
   merchantRateLimit,
   userRateLimit,
   validateRequest({ body: CreatePaymentLinkSchema }),
-  asyncHandler(paymentLinkController.createPaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.createPaymentLink(req, res);
+  })
 );
 
 /**
@@ -157,7 +172,10 @@ router.get(
   '/:id',
   readOnlyRateLimit,
   validateRequest({ params: idParamSchema }),
-  asyncHandler(paymentLinkController.getPaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.getPaymentLink(req, res);
+  })
 );
 
 /**
@@ -171,7 +189,10 @@ router.get(
   merchantRateLimit,
   validateRequest({ query: merchantIdQuerySchema }),
   validatePagination(),
-  asyncHandler(paymentLinkController.listPaymentLinks.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.listPaymentLinks(req, res);
+  })
 );
 
 /**
@@ -186,7 +207,10 @@ router.patch(
     params: idParamSchema,
     body: DisablePaymentLinkSchema 
   }),
-  asyncHandler(paymentLinkController.disablePaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.disablePaymentLink(req, res);
+  })
 );
 
 /**
@@ -201,7 +225,10 @@ router.patch(
     params: idParamSchema,
     body: DisablePaymentLinkSchema 
   }),
-  asyncHandler(paymentLinkController.enablePaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.enablePaymentLink(req, res);
+  })
 );
 
 /**
@@ -213,7 +240,10 @@ router.get(
   '/:id/status',
   readOnlyRateLimit,
   validateRequest({ params: idParamSchema }),
-  asyncHandler(paymentLinkController.getPaymentLinkStatus.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.getPaymentLinkStatus(req, res);
+  })
 );
 
 /**
@@ -253,7 +283,10 @@ router.get(
     }
   }),
   validatePagination(),
-  asyncHandler(transactionController.getTransactionsByPaymentLink.bind(transactionController))
+  asyncHandler((req: Request, res: Response) => {
+    const { transactionController } = initializeControllers();
+    return transactionController.getTransactionsByPaymentLink(req, res);
+  })
 );
 
 /**
@@ -265,7 +298,10 @@ router.get(
   '/:id/verify',
   readOnlyRateLimit,
   validateRequest({ params: idParamSchema }),
-  asyncHandler(paymentLinkController.verifyPaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.verifyPaymentLink(req, res);
+  })
 );
 
 /**
@@ -325,7 +361,10 @@ router.post(
   '/:id',
   paymentAccessRateLimit,
   validateRequest({ params: idParamSchema }),
-  asyncHandler(paymentLinkController.accessPaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.accessPaymentLink(req, res);
+  })
 );
 
 /**
@@ -337,7 +376,10 @@ router.post(
   '/:id/access',
   paymentAccessRateLimit,
   validateRequest({ params: idParamSchema }),
-  asyncHandler(paymentLinkController.accessPaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const { paymentLinkController } = initializeControllers();
+    return paymentLinkController.accessPaymentLink(req, res);
+  })
 );
 
 export default router;

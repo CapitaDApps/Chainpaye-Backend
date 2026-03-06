@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { PaymentLinkController } from '../controllers/PaymentLinkController';
 import { validateRequest } from '../middleware/validation';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -14,28 +14,36 @@ import { paymentAccessRateLimit } from '../middleware/rateLimiter';
 
 const router = Router();
 
-// Initialize dependencies
-const paymentLinkRepository = new PaymentLinkRepository();
-const paymentInitializationRepository = new PaymentInitializationRepository();
-const transactionRepository = new TransactionRepository();
-const auditService = new AuditService();
-const paymentLinkManager = new PaymentLinkManager(paymentLinkRepository, auditService);
-const toronetService = new ToronetService(auditService);
-const stateManager = new StateManager(transactionRepository, auditService);
-const transactionManager = new TransactionManager(
-  transactionRepository,
-  paymentLinkRepository,
-  paymentInitializationRepository,
-  stateManager,
-  auditService
-);
-const paymentLinkController = new PaymentLinkController(
-  paymentLinkManager,
-  auditService,
-  toronetService,
-  transactionManager,
-  paymentInitializationRepository
-);
+// Lazy initialization to ensure environment variables are loaded
+let paymentLinkController: PaymentLinkController;
+
+const initializeController = () => {
+  if (!paymentLinkController) {
+    // Initialize dependencies
+    const paymentLinkRepository = new PaymentLinkRepository();
+    const paymentInitializationRepository = new PaymentInitializationRepository();
+    const transactionRepository = new TransactionRepository();
+    const auditService = new AuditService();
+    const paymentLinkManager = new PaymentLinkManager(paymentLinkRepository, auditService);
+    const toronetService = new ToronetService(auditService);
+    const stateManager = new StateManager(transactionRepository, auditService);
+    const transactionManager = new TransactionManager(
+      transactionRepository,
+      paymentLinkRepository,
+      paymentInitializationRepository,
+      stateManager,
+      auditService
+    );
+    paymentLinkController = new PaymentLinkController(
+      paymentLinkManager,
+      auditService,
+      toronetService,
+      transactionManager,
+      paymentInitializationRepository
+    );
+  }
+  return paymentLinkController;
+};
 
 // Parameter validation schema
 const idParamSchema = {
@@ -56,7 +64,10 @@ router.get(
   '/:id',
   paymentAccessRateLimit,
   validateRequest({ params: idParamSchema }),
-  asyncHandler(paymentLinkController.accessPaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const controller = initializeController();
+    return controller.accessPaymentLink(req, res);
+  })
 );
 
 /**
@@ -68,7 +79,10 @@ router.post(
   '/:id',
   paymentAccessRateLimit,
   validateRequest({ params: idParamSchema }),
-  asyncHandler(paymentLinkController.accessPaymentLink.bind(paymentLinkController))
+  asyncHandler((req: Request, res: Response) => {
+    const controller = initializeController();
+    return controller.accessPaymentLink(req, res);
+  })
 );
 
 export default router;
